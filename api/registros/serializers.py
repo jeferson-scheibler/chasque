@@ -18,7 +18,7 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Registro
-        fields = ["id", "lugar", "lugar_id", "visitado_em", "ocasiao", "nota", "tags", "motivo", "criado_em"]
+        fields = ["id", "lugar", "lugar_id", "visitado_em", "ocasiao", "nota", "tags", "motivo", "privado", "criado_em"]
         read_only_fields = ["id", "criado_em"]
         extra_kwargs = {"motivo": {"required": False, "allow_blank": True, "max_length": 500}}
 

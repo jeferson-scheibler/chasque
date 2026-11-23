@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "lugares",
     "registros",
     "salvos",
+    "pessoas",
 ]
 
 MIDDLEWARE = [
@@ -131,6 +132,7 @@ REST_FRAMEWORK = {
         "renovar": "120/min",
         "cadastro": "5/hour",
         "criar_lugar": "30/day",
+        "convite": "30/hour",
     },
     # Atras do nginx em producao, defina DRF_NUM_PROXIES=1 para o limite contar o IP real.
     "NUM_PROXIES": int(os.environ["DRF_NUM_PROXIES"]) if os.environ.get("DRF_NUM_PROXIES") else None,

@@ -183,6 +183,12 @@ class ExportarView(APIView):
             "preferencias": sorted(
                 PreferenciaDeclarada.objects.filter(usuario=usuario).values_list("tag__slug", flat=True)
             ),
+            "pessoas_de_confianca": {
+                "sigo": [c.seguido.nome for c in usuario.confianca_dada.select_related("seguido") if c.estado == "aceito"],
+                "me_seguem": [
+                    c.seguidor.nome for c in usuario.confianca_recebida.select_related("seguidor") if c.estado == "aceito"
+                ],
+            },
             "perfil_de_gosto": [
                 {"tag": p.tag.slug, "ocasiao": p.ocasiao, "peso": p.peso}
                 for p in PesoGosto.objects.filter(usuario=usuario).select_related("tag")
