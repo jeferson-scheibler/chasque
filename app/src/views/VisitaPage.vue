@@ -62,6 +62,17 @@
           />
         </section>
 
+        <!-- Quem pode ver -->
+        <section class="passo">
+          <h2 class="passo__titulo">Quem pode ver?</h2>
+          <escolhas v-model="visibilidade" :opcoes="VISIBILIDADE" rotulo="Quem pode ver esta visita" />
+          <p class="passo__apoio passo__apoio--depois">
+            {{ visibilidade === 'confianca'
+              ? 'Suas pessoas de confiança veem esta visita: o lugar, a nota, os motivos e o que você escreveu.'
+              : 'Só você vê esta visita.' }}
+          </p>
+        </section>
+
         <!-- Conte mais -->
         <section class="passo">
           <h2 class="passo__titulo">Quer contar mais?</h2>
@@ -87,6 +98,15 @@
         {{ salvando ? 'Salvando...' : editando ? 'Salvar alterações' : 'Registrar visita' }}
       </button>
     </ion-footer>
+
+    <!-- visita nova: o chasque aprova antes de voltar para a lista -->
+    <div v-if="comemorando" class="aprovado" role="status">
+      <div class="aprovado__cartao">
+        <mascote pose="aprovando" class="aprovado__chasque" />
+        <p class="aprovado__titulo">Visita registrada</p>
+        <p class="aprovado__texto">{{ lugar?.nome }} já está ensinando o seu gosto ao Chasque.</p>
+      </div>
+    </div>
   </ion-page>
 </template>
 
@@ -94,12 +114,15 @@
 import {
   alertController, IonContent, IonFooter, IonIcon, IonPage, IonSpinner, toastController,
 } from '@ionic/vue'
-import { briefcaseOutline, heartOutline, homeOutline, peopleOutline, personOutline, trashOutline } from 'ionicons/icons'
+import {
+  briefcaseOutline, heartOutline, homeOutline, lockClosedOutline, peopleOutline, personOutline, trashOutline,
+} from 'ionicons/icons'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BuscaLugar from '@/components/BuscaLugar.vue'
 import Escolhas, { type Opcao } from '@/components/Escolhas.vue'
 import Faixa from '@/components/Faixa.vue'
+import Mascote from '@/components/Mascote.vue'
 import Sois from '@/components/Sois.vue'
 import { iconeDaCategoria } from '@/categorias'
 import { api, ErroApi, mensagemDe } from '@/services/api'
@@ -113,6 +136,11 @@ const OCASIOES: Opcao[] = [
   { valor: 'amigos', rotulo: 'Amigos', icone: peopleOutline },
   { valor: 'trabalho', rotulo: 'Trabalho', icone: briefcaseOutline },
 ]
+const VISIBILIDADE: Opcao[] = [
+  { valor: 'privado', rotulo: 'Só eu', icone: lockClosedOutline },
+  { valor: 'confianca', rotulo: 'Pessoas de confiança', icone: peopleOutline },
+]
+const CHAVE_VISIBILIDADE = 'chasque-visibilidade'
 const QUANDO: Opcao[] = [
   { valor: 'hoje', rotulo: 'Hoje' },
   { valor: 'ontem', rotulo: 'Ontem' },
@@ -131,11 +159,22 @@ const salvando = ref(false)
 const erro = ref('')
 
 const lugar = ref<Lugar | null>(null)
+const comemorando = ref(false)
 const nota = ref(0)
 const tags = ref<string[]>([])
 const ocasiao = ref<string | null>(null)
 const motivo = ref('')
 const quandoEscolha = ref<string>('hoje')
+// Privada por padrão; depois lembra a última escolha neste aparelho.
+const visibilidade = ref<string>(lerVisibilidade())
+
+function lerVisibilidade() {
+  try {
+    return localStorage.getItem(CHAVE_VISIBILIDADE) === 'confianca' ? 'confianca' : 'privado'
+  } catch {
+    return 'privado'
+  }
+}
 const data = ref('')
 
 function isoLocal(d: Date) {
@@ -186,6 +225,7 @@ async function carregar() {
       tags.value = [...r.tags]
       ocasiao.value = r.ocasiao
       motivo.value = r.motivo
+      visibilidade.value = r.privado ? 'privado' : 'confianca'
       if (r.visitado_em === hoje) quandoEscolha.value = 'hoje'
       else if (r.visitado_em === ontem) quandoEscolha.value = 'ontem'
       else {
@@ -232,6 +272,12 @@ async function salvar() {
     ocasiao: ocasiao.value,
     motivo: motivo.value.trim(),
     visitado_em: dataEscolhida.value,
+    privado: visibilidade.value !== 'confianca',
+  }
+  try {
+    localStorage.setItem(CHAVE_VISIBILIDADE, visibilidade.value)
+  } catch {
+    // sem armazenamento: só não lembra a escolha
   }
   try {
     if (editando.value) {
@@ -239,13 +285,16 @@ async function salvar() {
       await avisar('Visita atualizada')
     } else {
       await api('/registros/', { method: 'POST', json: corpo })
-      await avisar('Visita registrada')
+      comemorando.value = true
+      const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      await new Promise((r) => setTimeout(r, reduzido ? 900 : 1500))
     }
     await router.replace({ path: '/abas/lugares', query: { aba: 'visitados' } })
   } catch (e) {
     erro.value = e instanceof ErroApi ? mensagemDe(e.dados) ?? e.message : 'Sem conexão com o servidor.'
   } finally {
     salvando.value = false
+    comemorando.value = false
   }
 }
 
@@ -275,6 +324,68 @@ onMounted(carregar)
 </script>
 
 <style scoped>
+.aprovado {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--chasque-faixa) 55%, transparent);
+  backdrop-filter: blur(3px);
+  animation: aparecer 0.25s ease-out both;
+}
+
+.aprovado__cartao {
+  width: min(300px, 100%);
+  padding: 26px 24px 22px;
+  border-radius: 28px;
+  background: var(--colina-perto);
+  text-align: center;
+  box-shadow: 0 18px 50px rgb(15 21 36 / 0.35);
+  animation: subir 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.aprovado__chasque {
+  height: 140px;
+  width: auto;
+  margin: 0 auto 12px;
+}
+
+.aprovado__titulo {
+  margin: 0 0 6px;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: var(--chasque-tinta);
+}
+
+.aprovado__texto {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--chasque-tinta-suave);
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aprovado,
+  .aprovado__cartao {
+    animation: none;
+  }
+}
+
 .visita {
   padding-bottom: 24px;
 }
@@ -299,6 +410,10 @@ onMounted(carregar)
   margin: -6px 0 12px;
   font-size: 0.875rem;
   color: var(--chasque-tinta-suave);
+}
+
+.passo__apoio--depois {
+  margin: 10px 0 0;
 }
 
 .passo__busca {

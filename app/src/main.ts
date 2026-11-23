@@ -19,7 +19,25 @@ import './theme/botoes.css'
 
 const app = createApp(App).use(IonicVue).use(createPinia()).use(router)
 
-router.isReady().then(() => app.mount('#app'))
+router.isReady().then(() => {
+  app.mount('#app')
+  tirarAbertura()
+})
+
+// A abertura (no index.html) fica até a animação terminar, mesmo que o app carregue antes.
+function tirarAbertura() {
+  const abertura = document.getElementById('abertura')
+  if (!abertura) return
+  const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const falta = Math.max(0, (reduzido ? 600 : 1900) - performance.now())
+  setTimeout(() => {
+    abertura.classList.add('saindo')
+    setTimeout(() => {
+      abertura.remove()
+      document.getElementById('abertura-estilo')?.remove()
+    }, 500)
+  }, falta)
+}
 
 // O service worker torna o app instalável (PWA), o que habilita o menu Compartilhar no Android.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

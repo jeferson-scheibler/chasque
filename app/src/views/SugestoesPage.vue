@@ -60,6 +60,7 @@
 
       <vazio
         v-else-if="!origem"
+        pose="espiando"
         titulo="Onde você quer procurar?"
         texto="Use a sua localização ou escolha uma cidade do RS."
       >
@@ -70,6 +71,7 @@
 
       <vazio
         v-else-if="!resultados.length"
+        pose="duvida"
         titulo="Nada por perto combina ainda"
         texto="Tente outra cidade ou outra ocasião. Cada visita que você registra ajuda o Chasque a achar mais lugares."
       />

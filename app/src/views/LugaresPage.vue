@@ -31,6 +31,7 @@
 
         <vazio
           v-else-if="salvos.length === 0"
+          pose="acenando"
           titulo="Comece pelo que você viu no Instagram"
           texto="Compartilhe um post ou reel com o Chasque, ou copie o link e toque no sol."
         >

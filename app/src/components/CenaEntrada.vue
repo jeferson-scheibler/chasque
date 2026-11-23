@@ -9,7 +9,7 @@
           <img src="/marca/chasque-horizontal-claro.svg" alt="Chasque" width="186" height="44" />
           <p v-if="!curta">O recado dos lugares que você gostou.</p>
         </div>
-        <div class="cena__paisagem"><paisagem variante="cena" /></div>
+        <div class="cena__paisagem"><cena-missoes /></div>
       </div>
       <div class="cena__vale">
         <slot />
@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import { IonButton, IonContent, IonIcon, IonPage } from '@ionic/vue'
 import { arrowBack } from 'ionicons/icons'
-import Paisagem from './Paisagem.vue'
+import CenaMissoes from './CenaMissoes.vue'
 
 defineProps<{ curta?: boolean; voltar?: string }>()
 </script>
@@ -41,8 +41,8 @@ defineProps<{ curta?: boolean; voltar?: string }>()
 }
 
 .cena__ceu--curta {
-  height: min(34vh, 280px);
-  min-height: 230px;
+  height: min(44vh, 360px);
+  min-height: 300px;
 }
 
 .cena__voltar {
@@ -62,7 +62,6 @@ defineProps<{ curta?: boolean; voltar?: string }>()
 
 .cena__ceu--curta .cena__marca {
   padding-top: 52px;
-  text-align: center;
 }
 
 .cena__marca img {
@@ -73,7 +72,6 @@ defineProps<{ curta?: boolean; voltar?: string }>()
 
 .cena__ceu--curta .cena__marca img {
   height: 34px;
-  margin: 0 auto;
 }
 
 .cena__marca p {
@@ -92,7 +90,19 @@ defineProps<{ curta?: boolean; voltar?: string }>()
   left: 0;
   right: 0;
   bottom: -1px;
-  height: 62%;
+  /* altura da cena inteira na largura do celular (viewBox 390x300): a torre e o halo não são cortados */
+  height: min(70%, 77vw);
+}
+
+.cena__ceu--curta .cena__paisagem {
+  height: min(84%, 77vw);
+}
+
+/* celular de tela baixa: a frase cederia espaço à torre da ruína; fica só o logo */
+@media (max-height: 760px) {
+  .cena__marca p {
+    display: none;
+  }
 }
 
 .cena__vale {

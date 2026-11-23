@@ -16,6 +16,7 @@
 
     <vazio
       v-else-if="visitas.length === 0 && !termo"
+      pose="caminho"
       titulo="Guarde por que você gostou"
       texto="Registre o lugar onde você foi, como foi e o que fez diferença. É assim que o Chasque aprende o seu gosto."
     >
@@ -35,7 +36,10 @@
               <span class="linha__titulo">{{ visita.lugar.nome }}</span>
               <sois :model-value="visita.nota" somente-leitura />
             </span>
-            <span class="linha__meta">{{ meta(visita) }}</span>
+            <span class="linha__meta">
+              <ion-icon v-if="!visita.privado" :icon="peopleOutline" class="compartilhada" aria-label="Pessoas de confiança veem" />
+              {{ meta(visita) }}
+            </span>
             <span v-if="visita.tags.length" class="visita__motivos">
               <span v-for="slug in visita.tags.slice(0, 3)" :key="slug" :class="{ achado: achou(slug) }">{{ motivos.nome(slug) }}</span>
               <span v-if="visita.tags.length > 3" class="mais">+{{ visita.tags.length - 3 }}</span>
@@ -56,7 +60,7 @@
 import {
   IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonSpinner, type InfiniteScrollCustomEvent,
 } from '@ionic/vue'
-import { footstepsOutline, searchOutline } from 'ionicons/icons'
+import { footstepsOutline, peopleOutline, searchOutline } from 'ionicons/icons'
 import { onMounted, ref } from 'vue'
 import Sois from '@/components/Sois.vue'
 import Vazio from '@/components/Vazio.vue'
@@ -189,6 +193,13 @@ defineExpose({ recarregar })
 
 .visita__topo .linha__titulo {
   min-width: 0;
+}
+
+.compartilhada {
+  font-size: 14px;
+  vertical-align: -2px;
+  margin-right: 2px;
+  color: var(--chasque-ocre);
 }
 
 .visita__motivos {

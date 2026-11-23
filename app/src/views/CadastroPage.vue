@@ -28,7 +28,7 @@
       </button>
       <p class="alternativa">
         Já tem conta?
-        <router-link to="/entrar">Entrar</router-link>
+        <router-link :to="{ path: '/entrar', query: route.query }">Entrar</router-link>
       </p>
     </form>
   </cena-entrada>
@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Campo from '@/components/Campo.vue'
 import CenaEntrada from '@/components/CenaEntrada.vue'
 import { ErroApi } from '@/services/api'
@@ -44,6 +44,7 @@ import { useSessao } from '@/stores/sessao'
 
 const sessao = useSessao()
 const router = useRouter()
+const route = useRoute()
 
 const nome = ref('')
 const email = ref('')
@@ -65,7 +66,8 @@ async function enviar() {
   enviando.value = true
   try {
     await sessao.cadastrar({ nome: nome.value, email: email.value, senha: senha.value, aceita_termos: true })
-    await router.replace('/abas/lugares')
+    const volta = route.query.volta
+    await router.replace(typeof volta === 'string' && volta.startsWith('/') && !volta.startsWith('//') ? volta : '/abas/lugares')
   } catch (e) {
     erro.value = e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.'
   } finally {

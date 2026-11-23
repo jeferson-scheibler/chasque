@@ -37,7 +37,16 @@ export interface Registro {
   nota: number
   tags: string[]
   motivo: string
+  /** true: só a pessoa vê; false: pessoas de confiança também */
+  privado: boolean
   criado_em: string
+}
+
+/** O que uma pessoa vê da outra: nome e iniciais, nunca e-mail. */
+export interface Pessoa {
+  id: number
+  nome: string
+  iniciais: string
 }
 
 export interface Motivo {

@@ -81,6 +81,12 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET | `/api/sugestoes/` | Lugares pelo gosto da pessoa (`?lat=&lng=` ou `?cidade_id=`, e `?ocasiao=`). Sem local, usa a cidade da pessoa ou a última visita. |
 | GET, PUT | `/api/me/preferencias/` | Gostos escolhidos antes das visitas (`tags`). |
 | GET | `/api/mapa/` | Os lugares da pessoa em GeoJSON (salvos e visitados, sem repetir). |
+| GET | `/api/pessoas/` | Convite, pedidos recebidos e enviados, quem a pessoa segue e quem a segue. |
+| POST | `/api/pessoas/convite/novo/` | Troca o código do convite (o link antigo para de funcionar). |
+| GET, POST | `/api/convites/<codigo>/` | Ver de quem é o convite e pedir para seguir. |
+| POST | `/api/confiancas/<id>/aceitar/` | Aceitar um pedido. |
+| DELETE | `/api/confiancas/<id>/` | Recusar, cancelar, deixar de seguir ou remover seguidor. |
+| GET | `/api/pessoas/<id>/visitas/` | Visitas que uma pessoa seguida liberou (`?ocasiao=`, `?boas=1`). |
 | GET | `/api/healthz` | Saúde da API e do banco. |
 
 ## Base de lugares (OpenStreetMap)
@@ -168,7 +174,7 @@ Onde o compartilhamento funciona hoje:
 
 ## Próximas etapas
 
-1. Seguir pessoas de confiança e busca reversa ("o que a Ana aprovou para ir em família").
+1. Usar as visitas de pessoas de confiança nas sugestões ("a Ana amou e combina com você").
 
 ## Registro de visita e perfil de gosto
 
@@ -178,6 +184,55 @@ Exige pelo menos um motivo marcado ou escrito: o porquê é o que o Chasque guar
 Cada visita alimenta o perfil de gosto (`PesoGosto`), recalculado a cada registro, edição ou exclusão:
 a visita soma `(nota - 3) / 2` a cada motivo marcado, no geral e na ocasião. Nota 5 soma +1, nota 3 não
 muda nada, nota 1 soma -1.
+
+## Pessoas de confiança
+
+- **Só por convite:** cada pessoa tem um link (`/convite/<codigo>`). Quem abre pede para seguir, e a dona do link
+  aceita ou recusa. Não há busca por nome ou e-mail, então ninguém descobre quem tem conta. Trocar o link
+  invalida o antigo.
+- **Visitas privadas por padrão:** cada visita tem "Quem pode ver": Só eu ou Pessoas de confiança.
+  Quem segue vê só as liberadas, e só depois de aceito.
+- **Não é recíproco nem transitivo:** seguir alguém não faz essa pessoa ver as suas visitas.
+- **Busca reversa:** na página de quem você segue dá para filtrar por ocasião e pelas visitas de 4 e 5 sóis.
+- Uma pessoa vê da outra só nome e iniciais, nunca o e-mail. Desfazer vale dos dois lados, sem aviso.
+
+## Tela de entrada
+
+A cena de Entrar e Criar conta é a ruína da igreja de São Miguel Arcanjo, nas Missões, em silhueta contra o sol
+baixo: pelos arcos, janela e sineira passa a luz do céu, e araucárias perto e longe dão profundidade. Tudo fica no
+alto de uma colina cujo contorno é a divisa norte inteira do RS, do extremo oeste a Torres, com a inclinação real;
+o chão escuro se desfaz em degradê até a cor do formulário. O único movimento é o sol subindo atrás da torre.
+Gerada por `marca/fonte/gerar_cena.py` (silhueta estilizada da ruína, araucárias de `araucaria.py`, divisa de
+`gerar_borda.py`).
+
+## Tela de abertura
+
+Está no `index.html` (aparece antes do JavaScript): o contorno do símbolo se desenha, o sol acende e o nome
+surge; `src/main.ts` tira a abertura depois de 1,9 s. Gerada por `marca/fonte/gerar_abertura.py` a partir dos
+SVGs da marca.
+
+## Mascote
+
+O chasque, o mensageiro gaúcho a cavalo, aparece nos momentos em que a tela fala com a pessoa:
+
+| Pose | Onde |
+| --- | --- |
+| acenando | Meus lugares vazio |
+| caminho | Visitados vazio; "Levando o recado..." ao receber um link compartilhado |
+| espiando | Sugestões sem cidade escolhida (encosta na borda esquerda da tela) |
+| duvida | Sugestões sem resultado, link compartilhado com erro, salvo que sumiu |
+| mate | Pessoas de confiança vazio |
+| aprovando | Depois de registrar uma visita nova |
+| cavalo | Página não encontrada (qualquer endereço desconhecido, mesmo sem login) |
+
+Uso: `<Mascote pose="aprovando" />`; as telas vazias passam a pose para `<Vazio>`. Cada parte do desenho
+(corpo, lenço, couro, metal, detalhe) tem uma variável CSS, e o tema escuro troca o corpo por um azul mais claro
+para não sumir no fundo. `src/components/Mascote.vue` é gerado por `marca/fonte/gerar_mascote.py` a partir da
+folha `marca/original/mascote-referencia.webp` (recorte por pose, separação pela paleta, suavização e potrace):
+
+    docker run --rm -u $(id -u):$(id -g) -v $PWD:/c -w /c chasque-ferramentas python marca/fonte/gerar_mascote.py
+
+`--previa PASTA` grava também as folhas claro e escuro em SVG.
 
 ## Motivos da comunidade
 

@@ -7,6 +7,7 @@
 
       <vazio
         v-else-if="!salvo"
+        pose="duvida"
         titulo="Esse link não está mais aqui"
         texto="Ele pode ter sido removido. Volte para Meus lugares para ver o que está salvo."
       />

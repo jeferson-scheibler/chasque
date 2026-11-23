@@ -12,7 +12,7 @@
       </button>
       <p class="alternativa">
         Ainda não tem conta?
-        <router-link to="/cadastro">Criar conta</router-link>
+        <router-link :to="{ path: '/cadastro', query: route.query }">Criar conta</router-link>
       </p>
     </form>
   </cena-entrada>

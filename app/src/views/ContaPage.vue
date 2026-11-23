@@ -16,6 +16,16 @@
         </button>
       </form>
 
+      <router-link to="/abas/conta/pessoas" class="pessoas-entrada">
+        <span class="linha__icone"><ion-icon :icon="peopleOutline" aria-hidden="true" /></span>
+        <span class="linha__texto">
+          <span class="linha__titulo">Pessoas de confiança</span>
+          <span class="linha__meta">{{ resumoPessoas }}</span>
+        </span>
+        <span v-if="pedidos" class="pedidos">{{ pedidos }}</span>
+        <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
+      </router-link>
+
       <h2 class="secao-titulo">Privacidade</h2>
       <label class="contribuir">
         <span>
@@ -63,8 +73,8 @@
 </template>
 
 <script setup lang="ts">
-import { alertController, IonContent, IonIcon, IonPage, IonToggle, toastController } from '@ionic/vue'
-import { downloadOutline, logOutOutline, trashOutline } from 'ionicons/icons'
+import { alertController, IonContent, IonIcon, IonPage, IonToggle, onIonViewWillEnter, toastController } from '@ionic/vue'
+import { chevronForward, downloadOutline, logOutOutline, peopleOutline, trashOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Campo from '@/components/Campo.vue'
@@ -104,6 +114,26 @@ async function salvar() {
     salvando.value = false
   }
 }
+
+const pedidos = ref(0)
+const seguindo = ref(0)
+const seguidores = ref(0)
+const resumoPessoas = computed(() => {
+  if (pedidos.value) return `${pedidos.value} ${pedidos.value === 1 ? 'pedido novo' : 'pedidos novos'}`
+  if (!seguindo.value && !seguidores.value) return 'Convide quem você confia'
+  return `Você segue ${seguindo.value}, ${seguidores.value} seguem você`
+})
+
+onIonViewWillEnter(async () => {
+  try {
+    const r = await api<{ pedidos: unknown[]; seguindo: unknown[]; seguidores: unknown[] }>('/pessoas/')
+    pedidos.value = r.pedidos.length
+    seguindo.value = r.seguindo.length
+    seguidores.value = r.seguidores.length
+  } catch {
+    // a entrada continua funcionando sem o resumo
+  }
+})
 
 async function alternarContribuir(ligado: boolean) {
   try {
@@ -181,6 +211,33 @@ async function excluir(senha: string) {
   margin-left: 0;
   margin-right: 0;
   margin-bottom: 14px;
+}
+
+.pessoas-entrada {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 16px 0;
+  padding: 14px 14px 14px 16px;
+  border-radius: 18px;
+  background: var(--chasque-papel);
+  border: 1px solid var(--chasque-neblina);
+  color: inherit;
+  text-decoration: none;
+}
+
+.pedidos {
+  flex: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--chasque-ocre);
+  color: var(--chasque-sobre-ocre);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .contribuir {
