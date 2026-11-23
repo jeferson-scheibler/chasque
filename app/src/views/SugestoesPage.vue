@@ -79,7 +79,6 @@
       <template v-else>
         <!-- A melhor combinação: o único destaque da tela -->
         <article class="destaque">
-          <span class="destaque__brilho" aria-hidden="true" />
           <p class="destaque__rotulo">A que mais combina com você</p>
           <h2>{{ primeira.lugar.nome }}</h2>
           <p class="destaque__meta">{{ metaDo(primeira) }}</p>
@@ -462,79 +461,48 @@ onIonViewWillEnter(() => { void carregar() })
 }
 
 /* A melhor combinação: cartão Noite com o brilho do sol nascendo no canto. */
+/* a melhor combinação: sem caixa, direto no fundo da tela; só o nome grande e uma linha fina separam da lista */
 .destaque {
-  position: relative;
-  overflow: hidden;
-  margin: 14px 16px 6px;
-  padding: 22px 20px 20px;
-  border-radius: 24px;
-  background: var(--chasque-faixa);
-  color: var(--chasque-faixa-texto);
-}
-
-@media (prefers-color-scheme: dark) {
-  .destaque {
-    background: #1a2440;
-    border: 1px solid var(--chasque-neblina);
-  }
-}
-
-.destaque__brilho {
-  position: absolute;
-  right: -70px;
-  top: -70px;
-  width: 210px;
-  height: 210px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--chasque-ocre) 0 26%, color-mix(in srgb, var(--chasque-ocre) 35%, transparent) 27%, transparent 68%);
-  opacity: 0.9;
-  animation: nascer-sol 1.4s cubic-bezier(0.16, 0.8, 0.24, 1) both;
-}
-
-@keyframes nascer-sol {
-  from {
-    transform: translate(-10px, 40px) scale(0.85);
-    opacity: 0;
-  }
+  margin: 8px 16px 6px;
+  padding: 10px 4px 24px;
+  border-bottom: 1px solid var(--chasque-neblina);
 }
 
 .destaque__rotulo {
-  position: relative;
-  margin: 0 0 6px;
-  font-size: 0.85rem;
-  color: var(--chasque-faixa-suave);
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--chasque-tinta-suave);
 }
 
 .destaque h2 {
-  position: relative;
   margin: 0;
-  max-width: 78%;
-  font-size: 1.65rem;
-  font-weight: 650;
-  line-height: 1.15;
-  color: var(--chasque-faixa-texto);
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--chasque-tinta);
 }
 
 .destaque__meta {
-  position: relative;
-  margin: 6px 0 14px;
-  color: var(--chasque-faixa-suave);
+  margin: 10px 0 14px;
+  font-size: 1.02rem;
+  color: var(--chasque-tinta-suave);
 }
 
 .destaque__combina {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 0 0 18px;
+  margin: 0 0 20px;
 }
 
 .destaque__combina span {
-  padding: 6px 11px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: var(--chasque-faixa-vidro);
-  color: var(--chasque-faixa-texto);
-  font-size: 0.82rem;
+  background: var(--chasque-neblina);
+  color: var(--chasque-tinta);
+  font-size: 0.84rem;
   font-weight: 500;
 }
 
@@ -545,22 +513,20 @@ onIonViewWillEnter(() => { void carregar() })
 }
 
 .destaque__pessoas {
-  position: relative;
-  margin: -8px 0 16px;
-  font-size: 0.85rem;
-  color: var(--chasque-ocre);
+  margin: -8px 0 18px;
+  font-size: 0.88rem;
   font-weight: 600;
+  color: color-mix(in srgb, var(--chasque-ocre) 75%, var(--chasque-tinta));
 }
 
 .destaque__acoes {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
 }
 
 .destaque__fui {
-  color: var(--chasque-faixa-texto);
+  color: var(--chasque-tinta);
   font-weight: 600;
   text-decoration: underline;
   text-decoration-color: var(--chasque-ocre);
@@ -616,7 +582,7 @@ onIonViewWillEnter(() => { void carregar() })
 
 .esqueleto__destaque {
   height: 190px;
-  border-radius: 24px;
+  border-radius: 12px;
   margin: 0 0 18px;
 }
 
