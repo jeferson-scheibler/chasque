@@ -238,6 +238,25 @@ class SugestoesTests(Base):
         self.assertEqual(self.sugerir(quando="amanhã").status_code, 400)
         self.assertEqual(self.sugerir(hora="20:00").status_code, 400)  # hora sozinha, sem data
 
+    def test_tipo_traz_bar_sem_motivo_e_o_gosto_so_ordena(self):
+        self.client.put("/api/me/preferencias/", {"tags": ["ao-ar-livre"]}, format="json")
+        bar_mudo = self.lugar("Bar Sem Motivo", -51.9618, -29.4670, [])
+        bar_mudo.categoria = "amenity=bar"
+        bar_mudo.save()
+        self.bar_perto.categoria = "amenity=pub"
+        self.bar_perto.save()
+        self.assertNotIn("Bar Sem Motivo", self.nomes(self.sugerir()))  # pelo gosto: não combina com nada
+        nomes = self.nomes(self.sugerir(tipo="bar"))
+        self.assertEqual(set(nomes), {"Bar Sem Motivo", "Bar do Centro"})
+        self.assertNotIn("Casa da Cuca", nomes)  # outro tipo fica de fora
+        self.assertEqual(self.sugerir(tipo="boate").status_code, 400)
+
+    def test_tipo_inclui_lugar_ja_visitado(self):
+        self.bar_perto.categoria = "amenity=bar"
+        self.bar_perto.save()
+        self.registrar(lugar_id=self.bar_perto.id, nota=5, tags=["animado"])
+        self.assertIn("Bar do Centro", self.nomes(self.sugerir(tipo="bar")))
+
     def test_preferencias_declaradas_dao_sugestao_antes_da_primeira_visita(self):
         r = self.client.put("/api/me/preferencias/", {"tags": ["musica-ao-vivo"]}, format="json")
         self.assertEqual(r.data, {"tags": ["musica-ao-vivo"]})

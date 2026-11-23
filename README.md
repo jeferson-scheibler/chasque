@@ -260,6 +260,9 @@ Cada lugar num raio de 30 km soma o peso que a pessoa dá aos motivos que ele te
   ("natureza" está em centenas de praças, "cerveja artesanal" em poucos lugares);
 - salvos em "Quero conhecer" ganham +0,5; a distância desconta (a 10 km o lugar vale metade);
 - lugares já visitados ficam de fora, e no topo vão no máximo 2 da mesma categoria.
+- com um tipo escolhido (Bar, Lanche, Restaurante, Café e doces, Vida noturna, Passeio), entram todos os
+  lugares daquele tipo no raio, com ou sem motivos, e o gosto só ordena; já visitados também entram. Sem isso,
+  um bar quase nunca apareceria: só 6% dos bares do RS têm algum motivo no OpenStreetMap.
 
 Cada sugestão diz com o que combina. Sem visitas nem gostos, a tela pede os primeiros gostos.
 

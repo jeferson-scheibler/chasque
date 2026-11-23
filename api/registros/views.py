@@ -17,7 +17,7 @@ from .models import Ocasiao, PesoGosto, PreferenciaDeclarada, Registro
 from .comunidade import recalcular_motivos
 from .perfil import recalcular_perfil
 from .serializers import RegistroSerializer
-from .sugestoes import origem_da_busca, sugerir
+from .sugestoes import TIPOS, origem_da_busca, sugerir
 
 
 def sem_acento(texto):
@@ -81,7 +81,7 @@ class RegistroView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class SugestoesView(APIView):
-    """GET /api/sugestoes/?lat=&lng= | ?cidade_id= &ocasiao= &quando=AAAA-MM-DD &hora=HH:MM
+    """GET /api/sugestoes/?lat=&lng= | ?cidade_id= &ocasiao= &quando=AAAA-MM-DD &hora=HH:MM &tipo=bar|lanche|restaurante|cafe|noite|passeio
 
     Sem lat/lng nem cidade, procura na cidade da pessoa ou perto da última visita."""
 
@@ -102,6 +102,9 @@ class SugestoesView(APIView):
         if params.get("cidade_id", "").isdigit():
             cidade = Cidade.objects.filter(pk=int(params["cidade_id"])).first()
 
+        tipo = params.get("tipo", "")
+        if tipo and tipo not in TIPOS:
+            return Response({"tipo": ["Tipo de lugar desconhecido."]}, status=status.HTTP_400_BAD_REQUEST)
         quando, hora = None, None
         if params.get("quando"):
             try:
@@ -117,7 +120,7 @@ class SugestoesView(APIView):
                 return Response({"hora": ["Use a hora como HH:MM, junto com a data."]}, status=status.HTTP_400_BAD_REQUEST)
 
         origem = origem_da_busca(request.user, ponto, cidade)
-        resultados = sugerir(request.user, origem, ocasiao, quando=quando, hora=hora)
+        resultados = sugerir(request.user, origem, ocasiao, quando=quando, hora=hora, tipo=tipo)
         tem_gosto = (
             PesoGosto.objects.filter(usuario=request.user, peso__gt=0).exists()
             or PreferenciaDeclarada.objects.filter(usuario=request.user).exists()

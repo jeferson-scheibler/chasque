@@ -48,6 +48,19 @@
           </p>
           <button v-if="quando" type="button" class="botao botao--texto quando__limpar" @click="limparQuando">Qualquer dia</button>
         </div>
+        <div class="ocasioes tipos" role="radiogroup" aria-label="Que tipo de lugar">
+          <button
+            v-for="o in TIPOS"
+            :key="o.valor"
+            type="button"
+            role="radio"
+            :aria-checked="tipo === o.valor"
+            :class="{ ativa: tipo === o.valor }"
+            @click="tipo = o.valor"
+          >
+            {{ o.rotulo }}
+          </button>
+        </div>
         <div class="ocasioes" role="radiogroup" aria-label="Com quem você vai">
           <button
             v-for="o in OCASIOES"
@@ -110,7 +123,7 @@
       <template v-else>
         <!-- A melhor combinação: o único destaque da tela -->
         <article class="destaque">
-          <p class="destaque__rotulo">A que mais combina com você</p>
+          <p class="destaque__rotulo">{{ tipo && !primeira.combina.length ? 'A mais perto de você' : 'A que mais combina com você' }}</p>
           <h2>{{ primeira.lugar.nome }}</h2>
           <p class="destaque__meta">{{ metaDo(primeira) }}</p>
           <p v-if="avisoHorario(primeira)" class="horario" :class="`horario--${primeira.horario?.estado}`">
@@ -149,7 +162,7 @@
                 <span v-if="avisoHorario(s)" class="horario" :class="`horario--${s.horario?.estado}`">
                   <ion-icon :icon="timeOutline" aria-hidden="true" />{{ avisoHorario(s) }}
                 </span>
-                <span class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
+                <span v-if="s.combina.length" class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
                 <span v-if="pessoas(s)" class="pessoas">
                   <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ textoPessoas(s) }}
                 </span>
@@ -208,6 +221,16 @@ const OCASIOES = [
   { valor: 'amigos', rotulo: 'Amigos' },
   { valor: 'trabalho', rotulo: 'Trabalho' },
 ]
+// tipo de lugar: com um escolhido entram todos daquele tipo, e o gosto só ordena
+const TIPOS = [
+  { valor: '', rotulo: 'Pelo meu gosto' },
+  { valor: 'bar', rotulo: 'Bar' },
+  { valor: 'lanche', rotulo: 'Lanche' },
+  { valor: 'restaurante', rotulo: 'Restaurante' },
+  { valor: 'cafe', rotulo: 'Café e doces' },
+  { valor: 'noite', rotulo: 'Vida noturna' },
+  { valor: 'passeio', rotulo: 'Passeio' },
+]
 const CHAVE = 'chasque-sugestoes'
 
 const router = useRouter()
@@ -224,6 +247,7 @@ const erro = ref('')
 const posicao = ref<{ lat: number; lng: number } | null>(null)
 const cidadeId = ref<number | null>(null)
 const ocasiao = ref('')
+const tipo = ref('')
 const mostrarOnde = ref(false)
 const localizando = ref(false)
 // quando: dia (AAAA-MM-DD) e hora (HH:MM) da visita; vazio = qualquer dia. Não é lembrado: data velha engana.
@@ -246,13 +270,14 @@ try {
   const salvo = JSON.parse(localStorage.getItem(CHAVE) ?? '{}')
   if (typeof salvo.cidadeId === 'number') cidadeId.value = salvo.cidadeId
   if (typeof salvo.ocasiao === 'string') ocasiao.value = salvo.ocasiao
+  if (typeof salvo.tipo === 'string' && TIPOS.some((o) => o.valor === salvo.tipo)) tipo.value = salvo.tipo
 } catch {
   // sem armazenamento (aba anônima): começa do padrão
 }
 
 function lembrar() {
   try {
-    localStorage.setItem(CHAVE, JSON.stringify({ cidadeId: cidadeId.value, ocasiao: ocasiao.value }))
+    localStorage.setItem(CHAVE, JSON.stringify({ cidadeId: cidadeId.value, ocasiao: ocasiao.value, tipo: tipo.value }))
   } catch {
     // tudo bem não lembrar
   }
@@ -342,6 +367,7 @@ async function carregar() {
       p.set('cidade_id', String(cidadeId.value))
     }
     if (ocasiao.value) p.set('ocasiao', ocasiao.value)
+    if (tipo.value) p.set('tipo', tipo.value)
     if (quando.value) {
       p.set('quando', quando.value)
       if (hora.value) p.set('hora', hora.value)
@@ -431,7 +457,7 @@ watch(cidadeId, (novo) => {
   }
 })
 
-watch(ocasiao, () => {
+watch([ocasiao, tipo], () => {
   lembrar()
   void carregar()
 })
@@ -603,6 +629,14 @@ onIonViewWillEnter(() => { void carregar() })
   padding: 0 16px 4px;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+.tipos {
+  margin-top: 12px;
+}
+
+.tipos + .ocasioes {
+  margin-top: 8px;
 }
 
 .ocasioes::-webkit-scrollbar {

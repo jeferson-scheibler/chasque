@@ -18,6 +18,10 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
   registrou uma visita ali no mesmo dia da semana, o aviso vira "alguém já foi numa segunda", uma prova de
   que abre (só a contagem, nunca quem foi). Lugares com horário confirmado valem um pouco mais que os sem.
 
+- Com um tipo escolhido (bar, lanche, restaurante...), entram todos os lugares daquele tipo no raio, tenham
+  ou não motivos: o gosto só ordena. Sem isso, um bar sem nenhum motivo no mapa (a maioria) nunca apareceria.
+  Nesse modo os já visitados também entram: para marcar um encontro, o bar de sempre serve.
+
 Cada resultado leva os motivos que mais pesaram ("combina com"), para a pessoa entender a sugestão.
 """
 
@@ -44,6 +48,18 @@ RAIO_KM = 30
 LIMITE = 20
 FATOR_COMUNIDADE = 1.25
 FATOR_SEM_HORARIO = 0.85
+BASE_DO_TIPO = 0.3  # todo lugar do tipo escolhido começa com isso, para entrar mesmo sem motivo em comum
+
+# tipo -> categorias do OSM (lugares.osm.CATEGORIAS)
+TIPOS = {
+    "bar": ["amenity=bar", "amenity=pub", "amenity=biergarten", "craft=brewery"],
+    "lanche": ["amenity=fast_food", "amenity=food_court"],
+    "restaurante": ["amenity=restaurant"],
+    "cafe": ["amenity=cafe", "shop=coffee", "shop=bakery", "shop=pastry", "shop=confectionery", "amenity=ice_cream"],
+    "noite": ["amenity=nightclub", "amenity=bar", "amenity=pub"],
+    "passeio": ["leisure=park", "tourism=viewpoint", "natural=waterfall", "waterway=waterfall", "tourism=attraction",
+                "tourism=picnic_site", "leisure=garden", "leisure=nature_reserve"],
+}
 POR_CATEGORIA_NO_TOPO = 2
 TOPO = 10
 
@@ -122,19 +138,23 @@ def horario_do_lugar(lugar, quando, hora):
     return situacao, (horarios.texto_do_dia(lugar.horario, quando) if situacao == "aberto" else "")
 
 
-def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=None, hora=None):
-    """`quando` é um date (ou None) e `hora` os minutos desde 00:00 (ou None = qualquer hora)."""
+def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=None, hora=None, tipo=""):
+    """`quando` é um date (ou None), `hora` os minutos desde 00:00 (ou None = qualquer hora) e `tipo` uma
+    chave de TIPOS (ou "" = pelo gosto)."""
     pesos = pesos_da_pessoa(usuario, ocasiao)
     positivos = [slug for slug, peso in pesos.items() if peso > 0]
-    if origem is None or not positivos:
+    if origem is None or (not positivos and not tipo):
         return []
 
-    visitados = Registro.objects.filter(usuario=usuario).values("lugar_id")
     salvos = set(Salvo.objects.filter(usuario=usuario, lugar__isnull=False).values_list("lugar_id", flat=True))
+    candidatos = Lugar.objects.filter(ponto__dwithin=(origem["ponto"], D(km=raio_km)))
+    if tipo:
+        candidatos = candidatos.filter(categoria__in=TIPOS[tipo])
+    else:
+        candidatos = (candidatos.filter(Q(tags__slug__in=positivos) | Q(motivos_comunidade__tag__slug__in=positivos))
+                      .exclude(id__in=Registro.objects.filter(usuario=usuario).values("lugar_id")))
     candidatos = (
-        Lugar.objects.filter(ponto__dwithin=(origem["ponto"], D(km=raio_km)))
-        .filter(Q(tags__slug__in=positivos) | Q(motivos_comunidade__tag__slug__in=positivos))
-        .exclude(id__in=visitados)
+        candidatos
         .distinct()
         .annotate(distancia=Distance("ponto", origem["ponto"]))
         .prefetch_related("tags", "motivos_comunidade__tag")
@@ -149,7 +169,7 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
         def valor(s):
             return pesos.get(s, 0) * fator.get(s, 1) * (FATOR_COMUNIDADE if s in comunidade else 1)
 
-        pontos = sum(valor(s) for s in slugs)
+        pontos = sum(valor(s) for s in slugs) + (BASE_DO_TIPO if tipo else 0)
         if lugar.id in salvos:
             pontos += BONUS_SALVO
         if pontos <= 0:
