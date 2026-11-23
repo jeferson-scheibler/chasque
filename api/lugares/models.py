@@ -78,3 +78,24 @@ class Lugar(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class MotivoComunidade(models.Model):
+    """Motivo que pessoas marcaram em visitas bem avaliadas (4 ou 5 sóis) a este lugar.
+
+    Só existe a partir de settings.MOTIVOS_MIN_PESSOAS pessoas diferentes, e guarda só a contagem:
+    ninguém consegue saber quem marcou. Recalculado por registros.comunidade a cada visita.
+    """
+
+    lugar = models.ForeignKey(Lugar, on_delete=models.CASCADE, related_name="motivos_comunidade")
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="+")
+    pessoas = models.PositiveIntegerField()
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "motivo da comunidade"
+        verbose_name_plural = "motivos da comunidade"
+        constraints = [models.UniqueConstraint(fields=["lugar", "tag"], name="motivo_comunidade_unico")]
+
+    def __str__(self):
+        return f"{self.lugar}: {self.tag} ({self.pessoas})"

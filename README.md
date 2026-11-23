@@ -168,7 +168,7 @@ Onde o compartilhamento funciona hoje:
 
 ## Próximas etapas
 
-1. Enriquecer os motivos dos lugares com o que as pessoas marcam nas visitas (hoje vêm só do OSM).
+1. Seguir pessoas de confiança e busca reversa ("o que a Ana aprovou para ir em família").
 
 ## Registro de visita e perfil de gosto
 
@@ -178,6 +178,21 @@ Exige pelo menos um motivo marcado ou escrito: o porquê é o que o Chasque guar
 Cada visita alimenta o perfil de gosto (`PesoGosto`), recalculado a cada registro, edição ou exclusão:
 a visita soma `(nota - 3) / 2` a cada motivo marcado, no geral e na ocasião. Nota 5 soma +1, nota 3 não
 muda nada, nota 1 soma -1.
+
+## Motivos da comunidade
+
+As visitas também descrevem os lugares para todo mundo, sem expor ninguém (`registros/comunidade.py`):
+
+- contam só visitas de 4 ou 5 sóis (numa visita ruim os motivos respondem "o que não funcionou?");
+- um motivo só passa a descrever o lugar a partir de **3 pessoas diferentes** (`MOTIVOS_MIN_PESSOAS`);
+  abaixo disso daria para deduzir quem esteve lá;
+- guarda só a contagem (`MotivoComunidade`), nunca quem marcou;
+- quem desliga "Ajudar a descrever os lugares" na Conta sai da soma na hora; apagar visita ou conta também
+  tira da soma;
+- recalculado a cada visita; `python manage.py recalcular_motivos` refaz tudo (ex.: ao mudar o mínimo).
+
+O aceite do cadastro explica isso (versão dos termos `2026-11-2`). Nas sugestões, um motivo confirmado
+por pessoas vale 25% a mais e aparece como "Recomendado por N pessoas que foram".
 
 ## Sugestões
 

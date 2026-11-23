@@ -104,15 +104,28 @@ class MeView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    def perform_update(self, serializer):
+        antes = serializer.instance.contribuir_motivos
+        usuario = serializer.save()
+        if usuario.contribuir_motivos != antes:
+            # entra ou sai da soma anônima dos lugares que visitou
+            from registros.comunidade import lugares_de, recalcular_motivos
+
+            recalcular_motivos(lugares_de(usuario))
+
     def delete(self, request):
         corpo = request.data if isinstance(request.data, dict) else {}
         if not request.user.check_password(corpo.get("senha", "")):
             return Response({"senha": ["Senha incorreta."]}, status=status.HTTP_400_BAD_REQUEST)
 
+        from registros.comunidade import lugares_de, recalcular_motivos
+
+        lugares = lugares_de(request.user)
         with transaction.atomic():
             for pendente in OutstandingToken.objects.filter(user=request.user):
                 BlacklistedToken.objects.get_or_create(token=pendente)
             request.user.delete()
+        recalcular_motivos(lugares)  # as visitas apagadas saem da soma dos lugares
 
         resposta = Response(status=status.HTTP_204_NO_CONTENT)
         tokens.apagar_cookie(resposta)

@@ -33,13 +33,19 @@ class LugarSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.SerializerMethodField()
     tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field="slug")
     distancia_m = serializers.SerializerMethodField()
+    motivos_comunidade = serializers.SerializerMethodField()
 
     class Meta:
         model = Lugar
         fields = [
             "id", "nome", "endereco", "cidade", "categoria", "categoria_nome",
-            "lat", "lng", "aproximado", "fonte", "tags", "distancia_m",
+            "lat", "lng", "aproximado", "fonte", "tags", "motivos_comunidade", "distancia_m",
         ]
+
+    def get_motivos_comunidade(self, lugar):
+        """[{slug, pessoas}], do mais marcado ao menos. Só contagens: nunca quem marcou."""
+        motivos = sorted(lugar.motivos_comunidade.all(), key=lambda m: (-m.pessoas, m.tag.slug))
+        return [{"slug": m.tag.slug, "pessoas": m.pessoas} for m in motivos]
 
     def get_lat(self, lugar):
         return lugar.ponto.y

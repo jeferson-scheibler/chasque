@@ -38,7 +38,7 @@ def ponto_da_query(params):
 
 class LugarView(generics.RetrieveAPIView):
     serializer_class = LugarSerializer
-    queryset = Lugar.objects.prefetch_related("tags")
+    queryset = Lugar.objects.prefetch_related("tags", "motivos_comunidade__tag")
 
 
 class TagsView(generics.ListAPIView):
@@ -68,7 +68,7 @@ class LugaresView(APIView):
     def get(self, request):
         q = sem_acento(request.query_params.get("q", "").strip())[:100]
         perto = ponto_da_query(request.query_params)
-        lugares = Lugar.objects.prefetch_related("tags")
+        lugares = Lugar.objects.prefetch_related("tags", "motivos_comunidade__tag")
 
         if not q and not perto:
             return Response({"q": ["Informe o que buscar ou a sua posição."]}, status=status.HTTP_400_BAD_REQUEST)

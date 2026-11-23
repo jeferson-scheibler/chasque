@@ -10,6 +10,8 @@ export interface Lugar {
   aproximado: boolean
   fonte: 'osm' | 'overture' | 'usuario' | 'negocio'
   tags: string[]
+  /** Motivos marcados por pelo menos 3 pessoas em visitas boas. Só a contagem, nunca quem. */
+  motivos_comunidade: { slug: string; pessoas: number }[]
   distancia_m: number | null
 }
 

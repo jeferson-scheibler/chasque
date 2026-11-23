@@ -82,8 +82,14 @@
           <h2>{{ primeira.lugar.nome }}</h2>
           <p class="destaque__meta">{{ metaDo(primeira) }}</p>
           <p class="destaque__combina">
-            <span v-for="slug in primeira.combina" :key="slug">{{ motivos.nome(slug) }}</span>
+            <span v-for="slug in primeira.combina" :key="slug">
+              {{ motivos.nome(slug) }}
+              <template v-if="primeira.comunidade[slug]">
+                <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ primeira.comunidade[slug] }}
+              </template>
+            </span>
           </p>
+          <p v-if="pessoas(primeira)" class="destaque__pessoas">{{ textoPessoas(primeira) }}</p>
           <div class="destaque__acoes">
             <a class="botao botao--sol botao--compacto" :href="rota(primeira)" target="_blank" rel="noopener noreferrer">
               <ion-icon :icon="navigateOutline" aria-hidden="true" />Como chegar
@@ -103,6 +109,9 @@
                 <span class="linha__titulo">{{ s.lugar.nome }}</span>
                 <span class="linha__meta">{{ metaDo(s) }}</span>
                 <span class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
+                <span v-if="pessoas(s)" class="pessoas">
+                  <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ textoPessoas(s) }}
+                </span>
               </span>
               <span v-if="s.salvo" class="salvo">Salvo</span>
             </button>
@@ -122,7 +131,7 @@ import {
   actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
   onIonViewWillEnter, type RefresherCustomEvent,
 } from '@ionic/vue'
-import { chevronDown, chevronUp, locationOutline, navigateOutline } from 'ionicons/icons'
+import { chevronDown, chevronUp, locationOutline, navigateOutline, peopleOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EscolherCidade from '@/components/EscolherCidade.vue'
@@ -138,6 +147,8 @@ interface Sugestao {
   lugar: Lugar
   pontos: number
   combina: string[]
+  /** motivo -> quantas pessoas o marcaram em visitas boas */
+  comunidade: Record<string, number>
   salvo: boolean
 }
 interface Resposta {
@@ -212,6 +223,15 @@ function metaDo(s: Sugestao) {
 function listaDeMotivos(slugs: string[]) {
   const nomes = slugs.map((s) => motivos.nome(s).toLowerCase())
   return nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0] ?? ''
+}
+
+/** Quantas pessoas confirmaram o motivo mais marcado (0 se nenhum veio da comunidade). */
+function pessoas(s: Sugestao) {
+  return Math.max(0, ...Object.values(s.comunidade ?? {}))
+}
+
+function textoPessoas(s: Sugestao) {
+  return `Recomendado por ${pessoas(s)} pessoas que foram`
 }
 
 function rota(s: Sugestao) {
@@ -516,6 +536,20 @@ onIonViewWillEnter(() => { void carregar() })
   font-weight: 500;
 }
 
+.destaque__combina span ion-icon {
+  font-size: 13px;
+  margin: 0 2px 0 4px;
+  vertical-align: -2px;
+}
+
+.destaque__pessoas {
+  position: relative;
+  margin: -8px 0 16px;
+  font-size: 0.85rem;
+  color: var(--chasque-ocre);
+  font-weight: 600;
+}
+
 .destaque__acoes {
   position: relative;
   display: flex;
@@ -536,6 +570,16 @@ onIonViewWillEnter(() => { void carregar() })
   margin-top: 4px;
   font-size: 0.82rem;
   color: var(--chasque-tinta);
+}
+
+.pessoas {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--chasque-ocre) 75%, var(--chasque-tinta));
 }
 
 .salvo {

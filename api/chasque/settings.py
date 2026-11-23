@@ -106,7 +106,12 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Versao dos termos de uso aceitos no cadastro (LGPD: guardamos qual versao e quando).
-VERSAO_TERMOS = "2026-11"
+# 2026-11-2: motivos de visitas bem avaliadas ajudam a descrever os lugares, anonimos e somados.
+VERSAO_TERMOS = "2026-11-2"
+
+# Quantas pessoas diferentes precisam marcar um motivo para ele descrever o lugar para todos.
+# Abaixo disso, daria para deduzir quem esteve lá.
+MOTIVOS_MIN_PESSOAS = int(os.environ.get("MOTIVOS_MIN_PESSOAS", "3"))
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

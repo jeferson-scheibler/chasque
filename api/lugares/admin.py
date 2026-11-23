@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
 
-from .models import Cidade, Lugar, Tag
+from .models import Cidade, Lugar, MotivoComunidade, Tag
 
 
 @admin.register(Tag)
@@ -24,3 +24,11 @@ class LugarAdmin(GISModelAdmin):
 class CidadeAdmin(GISModelAdmin):
     list_display = ["nome", "id_externo"]
     search_fields = ["nome"]
+
+
+@admin.register(MotivoComunidade)
+class MotivoComunidadeAdmin(admin.ModelAdmin):
+    list_display = ["lugar", "tag", "pessoas", "atualizado_em"]
+    list_filter = ["tag"]
+    search_fields = ["lugar__nome"]
+    raw_id_fields = ["lugar"]

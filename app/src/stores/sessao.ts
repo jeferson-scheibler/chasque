@@ -7,6 +7,7 @@ export interface Usuario {
   email: string
   nome: string
   cidade_base: string
+  contribuir_motivos: boolean
   date_joined: string
 }
 
@@ -45,7 +46,7 @@ export const useSessao = defineStore('sessao', () => {
     usuario.value = r.usuario
   }
 
-  async function atualizar(dados: Partial<Pick<Usuario, 'nome' | 'cidade_base'>>) {
+  async function atualizar(dados: Partial<Pick<Usuario, 'nome' | 'cidade_base' | 'contribuir_motivos'>>) {
     usuario.value = await api<Usuario>('/me/', { method: 'PATCH', json: dados })
   }
 

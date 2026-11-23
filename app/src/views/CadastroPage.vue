@@ -15,8 +15,9 @@
       <label class="aceite">
         <input v-model="aceitaTermos" type="checkbox" />
         <span>
-          Aceito os termos de uso e a política de privacidade. Meus registros ficam privados, e posso baixar ou apagar
-          tudo quando quiser.
+          Aceito os termos de uso e a política de privacidade. Minhas visitas ficam privadas; os motivos das que eu
+          avaliar bem só ajudam a descrever o lugar somados aos de pelo menos 3 pessoas, sem meu nome. Posso
+          desligar isso, baixar ou apagar tudo quando quiser.
         </span>
       </label>
 

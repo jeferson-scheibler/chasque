@@ -10,6 +10,8 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
 - Motivo raro na base vale mais que motivo comum: "natureza" está em centenas de praças, "cerveja
   artesanal" em poucos lugares. Fator = 1 + log10(total / lugares com o motivo) / 2.
 - Variedade: no topo, no máximo 2 lugares da mesma categoria; os demais vêm depois.
+- Motivos da comunidade (marcados por pelo menos 3 pessoas em visitas boas) contam como motivos do lugar,
+  e valem 25% a mais que os que vêm só do OpenStreetMap: foram confirmados por quem foi.
 
 Cada resultado leva os motivos que mais pesaram ("combina com"), para a pessoa entender a sugestão.
 """
@@ -19,10 +21,10 @@ from collections import defaultdict
 
 from django.contrib.gis.db.models.functions import Distance
 from django.core.cache import cache
-from django.db.models import Count
+from django.db.models import Q
 from django.contrib.gis.measure import D
 
-from lugares.models import Cidade, Lugar
+from lugares.models import Cidade, Lugar, MotivoComunidade
 from salvos.models import Salvo
 
 from .models import PesoGosto, PreferenciaDeclarada, Registro
@@ -32,6 +34,7 @@ BONUS_SALVO = 0.5
 KM_MEIA_VALIA = 10
 RAIO_KM = 30
 LIMITE = 20
+FATOR_COMUNIDADE = 1.25
 POR_CATEGORIA_NO_TOPO = 2
 TOPO = 10
 
@@ -41,8 +44,13 @@ def raridade():
     fatores = cache.get("chasque:raridade-motivos")
     if fatores is None:
         total = Lugar.objects.count() or 1
-        contagem = Lugar.tags.through.objects.values("tag__slug").annotate(n=Count("id"))
-        fatores = {c["tag__slug"]: 1 + math.log10((total + 1) / (c["n"] + 1)) / 2 for c in contagem}
+        # lugares com cada motivo, vindo do OSM ou da comunidade (sem contar o mesmo lugar duas vezes)
+        pares = set(Lugar.tags.through.objects.values_list("lugar_id", "tag__slug"))
+        pares |= set(MotivoComunidade.objects.values_list("lugar_id", "tag__slug"))
+        contagem = defaultdict(int)
+        for _, slug in pares:
+            contagem[slug] += 1
+        fatores = {slug: 1 + math.log10((total + 1) / (n + 1)) / 2 for slug, n in contagem.items()}
         cache.set("chasque:raridade-motivos", fatores, 3600)
     return fatores
 
@@ -103,30 +111,35 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE):
     visitados = Registro.objects.filter(usuario=usuario).values("lugar_id")
     salvos = set(Salvo.objects.filter(usuario=usuario, lugar__isnull=False).values_list("lugar_id", flat=True))
     candidatos = (
-        Lugar.objects.filter(ponto__dwithin=(origem["ponto"], D(km=raio_km)), tags__slug__in=positivos)
+        Lugar.objects.filter(ponto__dwithin=(origem["ponto"], D(km=raio_km)))
+        .filter(Q(tags__slug__in=positivos) | Q(motivos_comunidade__tag__slug__in=positivos))
         .exclude(id__in=visitados)
         .distinct()
         .annotate(distancia=Distance("ponto", origem["ponto"]))
-        .prefetch_related("tags")
+        .prefetch_related("tags", "motivos_comunidade__tag")
     )
 
     fator = raridade()
     resultados = []
     for lugar in candidatos:
-        slugs = [t.slug for t in lugar.tags.all()]
-        pontos = sum(pesos.get(s, 0) * fator.get(s, 1) for s in slugs)
+        comunidade = {m.tag.slug: m.pessoas for m in lugar.motivos_comunidade.all()}
+        slugs = sorted({t.slug for t in lugar.tags.all()} | set(comunidade))
+
+        def valor(s):
+            return pesos.get(s, 0) * fator.get(s, 1) * (FATOR_COMUNIDADE if s in comunidade else 1)
+
+        pontos = sum(valor(s) for s in slugs)
         if lugar.id in salvos:
             pontos += BONUS_SALVO
         if pontos <= 0:
             continue
         km = lugar.distancia.km
-        combina = sorted(
-            (s for s in slugs if pesos.get(s, 0) > 0), key=lambda s: (-pesos[s] * fator.get(s, 1), s)
-        )[:3]
+        combina = sorted((s for s in slugs if pesos.get(s, 0) > 0), key=lambda s: (-valor(s), s))[:3]
         resultados.append({
             "lugar": lugar,
             "pontos": round(pontos / (1 + km / KM_MEIA_VALIA), 4),
             "combina": combina,
+            "comunidade": {s: comunidade[s] for s in combina if s in comunidade},
             "salvo": lugar.id in salvos,
         })
 

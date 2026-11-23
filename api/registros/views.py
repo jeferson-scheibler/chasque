@@ -13,6 +13,7 @@ from lugares.serializers import LugarSerializer
 from salvos.models import Salvo
 
 from .models import Ocasiao, PesoGosto, PreferenciaDeclarada, Registro
+from .comunidade import recalcular_motivos
 from .perfil import recalcular_perfil
 from .serializers import RegistroSerializer
 from .sugestoes import origem_da_busca, sugerir
@@ -26,7 +27,7 @@ def registros_de(usuario):
     return (
         Registro.objects.filter(usuario=usuario)
         .select_related("lugar")
-        .prefetch_related("tags", "lugar__tags")
+        .prefetch_related("tags", "lugar__tags", "lugar__motivos_comunidade__tag")
         .order_by("-visitado_em", "-criado_em")
     )
 
@@ -53,8 +54,9 @@ class RegistrosView(generics.ListCreateAPIView):
         return registros
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+        registro = serializer.save(usuario=self.request.user)
         recalcular_perfil(self.request.user)
+        recalcular_motivos([registro.lugar_id])
 
 
 class RegistroView(generics.RetrieveUpdateDestroyAPIView):
@@ -65,12 +67,16 @@ class RegistroView(generics.RetrieveUpdateDestroyAPIView):
         return registros_de(self.request.user)
 
     def perform_update(self, serializer):
-        serializer.save()
+        lugar_antes = serializer.instance.lugar_id
+        registro = serializer.save()
         recalcular_perfil(self.request.user)
+        recalcular_motivos([lugar_antes, registro.lugar_id])
 
     def perform_destroy(self, instance):
+        lugar = instance.lugar_id
         instance.delete()
         recalcular_perfil(self.request.user)
+        recalcular_motivos([lugar])
 
 
 class SugestoesView(APIView):
@@ -111,6 +117,7 @@ class SugestoesView(APIView):
                     "lugar": LugarSerializer(r["lugar"]).data,
                     "pontos": r["pontos"],
                     "combina": r["combina"],
+                    "comunidade": r["comunidade"],
                     "salvo": r["salvo"],
                 }
                 for r in resultados

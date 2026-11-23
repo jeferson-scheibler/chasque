@@ -16,6 +16,22 @@
         </button>
       </form>
 
+      <h2 class="secao-titulo">Privacidade</h2>
+      <label class="contribuir">
+        <span>
+          <strong>Ajudar a descrever os lugares</strong>
+          <small>
+            Os motivos das visitas que você avalia bem entram, somados aos de pelo menos 3 pessoas e sem o seu nome,
+            na descrição do lugar. Suas visitas continuam privadas.
+          </small>
+        </span>
+        <ion-toggle
+          :checked="sessao.usuario?.contribuir_motivos ?? true"
+          aria-label="Ajudar a descrever os lugares"
+          @ion-change="alternarContribuir($event.detail.checked)"
+        />
+      </label>
+
       <h2 class="secao-titulo">Seus dados</h2>
       <p class="secao-apoio">Seus registros são privados. Você pode levar tudo com você ou apagar a conta.</p>
       <ul class="linhas">
@@ -47,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { alertController, IonContent, IonIcon, IonPage, toastController } from '@ionic/vue'
+import { alertController, IonContent, IonIcon, IonPage, IonToggle, toastController } from '@ionic/vue'
 import { downloadOutline, logOutOutline, trashOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -86,6 +102,15 @@ async function salvar() {
     await avisar(e instanceof ErroApi ? e.message : 'Não foi possível salvar.', 'danger')
   } finally {
     salvando.value = false
+  }
+}
+
+async function alternarContribuir(ligado: boolean) {
+  try {
+    await sessao.atualizar({ contribuir_motivos: ligado })
+    await avisar(ligado ? 'Seus motivos voltam a ajudar' : 'Seus motivos saíram da descrição dos lugares')
+  } catch {
+    await avisar('Não foi possível salvar.', 'danger')
   }
 }
 
@@ -156,6 +181,38 @@ async function excluir(senha: string) {
   margin-left: 0;
   margin-right: 0;
   margin-bottom: 14px;
+}
+
+.contribuir {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 4px 20px 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--chasque-papel);
+  border: 1px solid var(--chasque-neblina);
+}
+
+.contribuir strong {
+  display: block;
+  font-family: var(--chasque-fonte-titulo);
+  font-weight: 600;
+  color: var(--chasque-tinta);
+}
+
+.contribuir small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--chasque-tinta-suave);
+}
+
+.contribuir ion-toggle {
+  flex: none;
+  --track-background-checked: var(--chasque-ocre);
+  --handle-background-checked: var(--chasque-papel);
 }
 
 .excluir {

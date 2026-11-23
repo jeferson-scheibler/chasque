@@ -42,6 +42,9 @@ class Usuario(AbstractUser):
     nome = models.CharField(max_length=120)
     cidade_base = models.CharField("cidade base", max_length=120, blank=True)
 
+    # Motivos de visitas bem avaliadas entram, somados aos de outras pessoas e sem nome, na descrição do lugar.
+    contribuir_motivos = models.BooleanField(default=True)
+
     # LGPD: registro do consentimento.
     termos_aceitos_em = models.DateTimeField(null=True, blank=True)
     versao_termos = models.CharField(max_length=20, blank=True)

@@ -274,3 +274,96 @@ class MapaTests(Base):
         self.assertEqual((cafe["tipo"], cafe["visitas"], cafe["nota"], cafe["visita_id"]), ("visitado", 2, 5, ultima))
         self.assertEqual(por_nome["Cascata do Moinho"]["properties"]["tipo"], "salvo")  # a visita da Bia não conta
         self.assertEqual(por_nome["Café da Praça"]["geometry"]["coordinates"], [-51.96, -29.46])
+
+
+class ComunidadeTests(Base):
+    """Motivos da comunidade: soma anônima de visitas boas, a partir de 3 pessoas."""
+
+    def setUp(self):
+        super().setUp()
+        self.pessoas = [self.ana, self.bia] + [
+            Usuario.objects.create_user(email=f"p{i}@exemplo.com", password="x" * 12, nome=f"P{i}") for i in range(3)
+        ]
+
+    def visita(self, pessoa, lugar=None, nota=5, tags=("cafe-colonial",)):
+        self.client.force_authenticate(pessoa)
+        r = self.registrar(lugar_id=(lugar or self.cafe).id, nota=nota, tags=list(tags))
+        self.client.force_authenticate(self.ana)
+        return r.data["id"]
+
+    def motivos(self, lugar=None):
+        r = self.client.get(f"/api/lugares/{(lugar or self.cafe).id}/")
+        return {m["slug"]: m["pessoas"] for m in r.data["motivos_comunidade"]}
+
+    def test_so_aparece_a_partir_de_tres_pessoas(self):
+        self.visita(self.pessoas[0])
+        self.visita(self.pessoas[1])
+        self.assertEqual(self.motivos(), {})
+        self.visita(self.pessoas[2])
+        self.assertEqual(self.motivos(), {"cafe-colonial": 3})
+
+    def test_mesma_pessoa_varias_vezes_conta_uma(self):
+        for _ in range(3):
+            self.visita(self.pessoas[0])
+        self.assertEqual(self.motivos(), {})
+
+    def test_visita_ruim_nao_conta(self):
+        for p in self.pessoas[:2]:
+            self.visita(p)
+        self.visita(self.pessoas[2], nota=2)  # "o que não funcionou?"
+        self.assertEqual(self.motivos(), {})
+
+    def test_api_mostra_so_a_contagem(self):
+        for p in self.pessoas[:3]:
+            self.visita(p)
+        corpo = self.client.get(f"/api/lugares/{self.cafe.id}/").content.decode()
+        for p in self.pessoas:
+            self.assertNotIn(p.email, corpo)
+            self.assertNotIn(p.nome, corpo.replace("Café da Praça", ""))
+
+    def test_apagar_visita_ou_conta_tira_da_soma(self):
+        ids = [self.visita(p) for p in self.pessoas[:3]]
+        self.client.force_authenticate(self.pessoas[2])
+        self.client.delete(f"{self.url}{ids[2]}/")
+        self.assertEqual(self.motivos(), {})
+        self.visita(self.pessoas[2])
+        self.visita(self.pessoas[3])
+        self.assertEqual(self.motivos(), {"cafe-colonial": 4})
+        self.client.force_authenticate(self.pessoas[3])
+        self.client.delete("/api/me/", {"senha": "x" * 12}, format="json")
+        self.client.force_authenticate(self.ana)
+        self.assertEqual(self.motivos(), {"cafe-colonial": 3})
+
+    def test_quem_desliga_a_contribuicao_sai_da_soma(self):
+        for p in self.pessoas[:3]:
+            self.visita(p)
+        self.client.force_authenticate(self.pessoas[0])
+        r = self.client.patch("/api/me/", {"contribuir_motivos": False}, format="json")
+        self.assertFalse(r.data["contribuir_motivos"])
+        self.assertEqual(self.motivos(), {})
+        self.client.force_authenticate(self.pessoas[0])
+        self.client.patch("/api/me/", {"contribuir_motivos": True}, format="json")
+        self.assertEqual(self.motivos(), {"cafe-colonial": 3})
+
+    def test_minimo_configuravel(self):
+        from django.test import override_settings
+
+        with override_settings(MOTIVOS_MIN_PESSOAS=2):
+            self.visita(self.pessoas[0])
+            self.visita(self.pessoas[1])
+            self.assertEqual(self.motivos(), {"cafe-colonial": 2})
+
+    def test_lugar_sem_motivo_no_osm_passa_a_ser_sugerido(self):
+        from lugares.models import Cidade
+
+        Cidade.objects.create(nome="Lajeado", ponto=Point(-51.9617, -29.4669), id_externo="node/9")
+        doceria = Lugar.objects.create(nome="Doceria da Vó", ponto=Point(-51.962, -29.467), fonte="osm",
+                                       id_externo="node/77", cidade="Lajeado")  # o OSM não diz nada dela
+        for p in self.pessoas[1:4]:
+            self.visita(p, lugar=doceria, tags=("doces", "comida-caseira"))
+        self.client.force_authenticate(self.pessoas[4])
+        self.client.put("/api/me/preferencias/", {"tags": ["doces"]}, format="json")
+        r = self.client.get("/api/sugestoes/", {"lat": -29.4669, "lng": -51.9617})
+        primeira = r.data["resultados"][0]
+        self.assertEqual(primeira["lugar"]["nome"], "Doceria da Vó")
+        self.assertEqual(primeira["comunidade"], {"doces": 3})

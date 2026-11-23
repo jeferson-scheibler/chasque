@@ -24,7 +24,7 @@ class SalvosView(generics.ListAPIView):
     serializer_class = SalvoSerializer
 
     def get_queryset(self):
-        salvos = com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags")
+        salvos = com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags", "lugar__motivos_comunidade__tag")
         if self.request.query_params.get("pendentes") == "1":
             salvos = salvos.filter(lugar__isnull=True)
         return salvos
@@ -65,4 +65,4 @@ class SalvoView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
-        return com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags")
+        return com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags", "lugar__motivos_comunidade__tag")

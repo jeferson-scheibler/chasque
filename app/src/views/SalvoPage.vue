@@ -30,9 +30,17 @@
               <p v-if="salvo.lugar.aproximado" class="lugar__endereco">Posição aproximada, no centro da cidade.</p>
             </div>
           </div>
-          <ul v-if="salvo.lugar.tags.length" class="motivos" aria-label="Motivos do lugar">
-            <li v-for="tag in salvo.lugar.tags" :key="tag">{{ nomeDaTag(tag) }}</li>
+          <ul v-if="motivosDoLugar.length" class="motivos" aria-label="Motivos do lugar">
+            <li v-for="m in motivosDoLugar" :key="m.slug" :class="{ comunidade: m.pessoas }">
+              {{ nomeDaTag(m.slug) }}
+              <span v-if="m.pessoas" class="motivos__pessoas" :aria-label="`marcado por ${m.pessoas} pessoas`">
+                <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ m.pessoas }}
+              </span>
+            </li>
           </ul>
+          <p v-if="salvo.lugar.motivos_comunidade.length" class="motivos__nota">
+            Os números mostram quantas pessoas marcaram o motivo em visitas que avaliaram bem.
+          </p>
           <router-link class="botao botao--sol visitei" :to="{ path: '/abas/lugares/visita/nova', query: { salvo: salvo.id } }">
             <ion-icon :icon="footstepsOutline" aria-hidden="true" />{{ salvo.visitado ? 'Registrar outra visita' : 'Já fui, registrar visita' }}
           </router-link>
@@ -71,7 +79,7 @@
 
 <script setup lang="ts">
 import { alertController, IonContent, IonIcon, IonPage, IonSpinner, toastController } from '@ionic/vue'
-import { footstepsOutline, logoInstagram, openOutline, trashOutline } from 'ionicons/icons'
+import { footstepsOutline, logoInstagram, openOutline, peopleOutline, trashOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BuscaLugar from '@/components/BuscaLugar.vue'
@@ -90,6 +98,14 @@ const trocando = ref(false)
 const texto = ref('')
 
 const caminho = computed(() => `/salvos/${route.params.id}/`)
+// motivos confirmados por pessoas primeiro, depois os do OpenStreetMap
+const motivosDoLugar = computed(() => {
+  const lugar = salvo.value?.lugar
+  if (!lugar) return []
+  const daComunidade = lugar.motivos_comunidade.map((m) => ({ slug: m.slug, pessoas: m.pessoas }))
+  const vistos = new Set(daComunidade.map((m) => m.slug))
+  return [...daComunidade, ...lugar.tags.filter((s) => !vistos.has(s)).map((slug) => ({ slug, pessoas: 0 }))]
+})
 const titulo = computed(() => (carregando.value ? '' : salvo.value?.lugar?.nome ?? 'Qual lugar é esse?'))
 const subtitulo = computed(() => (salvo.value ? `Salvo do Instagram` : undefined))
 // "cafe.da_praca" vira "cafe da praca" para começar a busca.
@@ -242,6 +258,27 @@ onMounted(carregar)
 
 .visitei {
   margin-top: 18px;
+}
+
+.motivos li.comunidade {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--chasque-ocre) 22%, var(--chasque-fundo));
+}
+
+.motivos__pessoas {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.motivos__nota {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  color: var(--chasque-tinta-suave);
 }
 
 .lugar .botao--texto {

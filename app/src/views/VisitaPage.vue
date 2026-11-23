@@ -152,11 +152,13 @@ const titulo = computed(() => (editando.value && lugar.value ? lugar.value.nome 
 const subtitulo = computed(() => (editando.value ? 'Sua visita' : lugar.value ? lugar.value.nome : 'Três toques e pronto'))
 
 // Os motivos que o OSM já sugere para o lugar aparecem primeiro, num grupo à parte.
-const sugeridos = computed<Opcao[]>(() =>
-  (lugar.value?.tags ?? []).map((slug) => ({ valor: slug, rotulo: motivos.nome(slug) })),
-)
+// Primeiro o que outras pessoas confirmaram (comunidade), depois o que vem do OpenStreetMap.
+const slugsDoLugar = computed(() => [
+  ...new Set([...(lugar.value?.motivos_comunidade ?? []).map((m) => m.slug), ...(lugar.value?.tags ?? [])]),
+])
+const sugeridos = computed<Opcao[]>(() => slugsDoLugar.value.map((slug) => ({ valor: slug, rotulo: motivos.nome(slug) })))
 const gruposSemSugeridos = computed(() => {
-  const jaMostrados = new Set(lugar.value?.tags ?? [])
+  const jaMostrados = new Set(slugsDoLugar.value)
   return motivos.grupos
     .map((g) => ({
       nome: g.nome,
