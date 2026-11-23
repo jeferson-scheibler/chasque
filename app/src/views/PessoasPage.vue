@@ -81,8 +81,8 @@
 
       <vazio
         v-if="carregou && vazio"
-        pose="mate"
-        titulo="Chimarrão se toma em roda"
+        pose="parado"
+        titulo="Ninguém por aqui ainda"
         texto="Quando alguém aceitar seu convite, ou você aceitar o de alguém, essa pessoa aparece aqui."
       />
     </ion-content>

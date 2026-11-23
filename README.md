@@ -213,22 +213,23 @@ SVGs da marca.
 
 ## Mascote
 
-O chasque, o mensageiro gaúcho a cavalo, aparece nos momentos em que a tela fala com a pessoa:
+Um cavalo crioulo baio, de crina azul-noite, lenço e pelego, aparece nos momentos em que a tela fala com a pessoa:
 
 | Pose | Onde |
 | --- | --- |
-| acenando | Meus lugares vazio |
-| caminho | Visitados vazio; "Levando o recado..." ao receber um link compartilhado |
+| empinando | Meus lugares vazio (boas-vindas) |
+| trote | Visitados vazio; "Levando o recado..." ao receber um link compartilhado |
 | espiando | Sugestões sem cidade escolhida (encosta na borda esquerda da tela) |
 | duvida | Sugestões sem resultado, link compartilhado com erro, salvo que sumiu |
-| mate | Pessoas de confiança vazio |
+| parado | Pessoas de confiança vazio |
 | aprovando | Depois de registrar uma visita nova |
-| cavalo | Página não encontrada (qualquer endereço desconhecido, mesmo sem login) |
+| relinchando | Página não encontrada (qualquer endereço desconhecido, mesmo sem login) |
 
-Uso: `<Mascote pose="aprovando" />`; as telas vazias passam a pose para `<Vazio>`. Cada parte do desenho
-(corpo, lenço, couro, metal, detalhe) tem uma variável CSS, e o tema escuro troca o corpo por um azul mais claro
-para não sumir no fundo. `src/components/Mascote.vue` é gerado por `marca/fonte/gerar_mascote.py` a partir da
-folha `marca/original/mascote-referencia.webp` (recorte por pose, separação pela paleta, suavização e potrace):
+Uso: `<Mascote pose="aprovando" />`; as telas vazias passam a pose para `<Vazio>`. As cores são as mesmas nos dois
+temas. No escuro, a crina e os cascos azul-noite sumiriam, então entra um contorno creme de adesivo em volta de
+cada pose (camada `contorno`, transparente no claro). `src/components/Mascote.vue` é gerado por
+`marca/fonte/gerar_mascote.py` a partir da folha `marca/original/Folha de Adesivos de Pôneis Fofos.png` (fundo
+transparente; recorte por pose, separação pela paleta, suavização e potrace):
 
     docker run --rm -u $(id -u):$(id -g) -v $PWD:/c -w /c chasque-ferramentas python marca/fonte/gerar_mascote.py
 

@@ -10,7 +10,7 @@
         <router-link class="botao botao--noite botao--compacto" to="/abas/lugares" replace>Ir para Meus lugares</router-link>
       </vazio>
       <div v-else class="guardando" role="status">
-        <mascote pose="caminho" class="guardando__chasque" />
+        <mascote pose="trote" class="guardando__chasque" />
         <p>Levando o recado...</p>
       </div>
     </ion-content>

@@ -43,6 +43,7 @@ defineProps<{ titulo: string; texto: string; pose: PoseMascote }>()
 }
 
 .vazio--espiando .vazio__mascote .mascote {
+  height: 200px;
   margin: 0;
 }
 

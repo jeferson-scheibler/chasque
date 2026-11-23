@@ -1,19 +1,17 @@
-"""Mascote do Chasque: vetoriza as 7 poses da folha de referência em camadas de cor.
+"""Mascote do Chasque: um cavalo crioulo em 7 poses, vetorizado a partir de uma folha de adesivos.
 
-A folha (marca/original/mascote-referencia.webp) foi gerada por imagem; aqui cada pose é
-recortada, as cores são separadas pela paleta da marca, os contornos são suavizados
-(tira o serrilhado e os calombos do traço gerado) e o potrace devolve curvas limpas.
+A folha (marca/original/Folha de Adesivos de Pôneis Fofos.png) tem fundo transparente, então a silhueta sai do
+canal alfa. Dentro dela, cada pixel vai para a cor mais próxima da paleta e cada cor vira uma camada traçada
+pelo potrace, com variável CSS própria (o tema muda as variáveis, não o desenho):
 
-Camadas, de baixo para cima:
-  corpo     azul-noite, a silhueta inteira (passa um pouco por baixo das outras, sem fresta)
-  couro     marrom da mochila e do toco
-  lenco     ocre: lenço, cuia, sombra do chão, grama, "?" e o selo de aprovado
-  metal     a bomba do chimarrão
-  detalhe   creme: olhos, listras do poncho, faixa do chapéu, rédeas, check
+  contorno  borda de adesivo: só aparece no tema escuro, onde o azul-noite da crina sumiria
+  corpo     baio, a silhueta inteira (as demais camadas ficam por cima, sem fresta)
+  sombra    baio mais escuro: pernas do lado de lá, parte de dentro da orelha
+  crina     azul-noite: crina, cola, cascos, pupila
+  creme     focinho, pelego, brilho do olho, cabresto
+  escuro    lenço, cincha, bolsa, grama, riscos de som, interrogação e check
 
-Cada camada usa uma variável CSS, então o tema escuro é só troca de cor.
-
-Uso (dentro da imagem chasque-ferramentas, que tem potrace, numpy e scipy):
+Uso (na imagem chasque-ferramentas, que tem potrace, numpy e scipy):
   python marca/fonte/gerar_mascote.py               gera app/src/components/Mascote.vue
   python marca/fonte/gerar_mascote.py --previa DIR  também grava folhas de prévia (claro e escuro)
 """
@@ -28,41 +26,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-RAIZ = pathlib.Path(__file__).resolve().parents[2]
-REFERENCIA = RAIZ / "marca/original/mascote-referencia.webp"
-DESTINO = RAIZ / "app/src/components/Mascote.vue"
-
-# recorte aproximado de cada pose na folha 1536x1024 (x0, y0, x1, y1)
-POSES = {
-    "cavalo": (130, 20, 700, 505),
-    "acenando": (770, 40, 1090, 490),
-    "aprovando": (1165, 60, 1500, 490),
-    "duvida": (55, 530, 380, 965),
-    "caminho": (440, 530, 740, 960),
-    "espiando": (820, 530, 1100, 960),
-    "mate": (1165, 530, 1500, 965),
-}
-
-# centros de cor medidos na referência
-CORES = {
-    "fundo": (247, 244, 233),
-    "corpo": (30, 43, 75),
-    "corpo2": (52, 68, 102),  # sela translúcida: vira corpo
-    "lenco": (226, 166, 74),
-    "couro": (138, 90, 46),
-    "metal": (178, 182, 190),
-    "corda": (226, 206, 160),  # rédeas e cabresto
-}
-
 ESCALA = 3  # traça em 3x: curvas mais finas sem perder dedos e cascos
-
-
-def classificar(rgb):
-    nomes = list(CORES)
-    centros = np.array([CORES[n] for n in nomes], dtype=np.float32)
-    d = ((rgb[:, :, None, :].astype(np.float32) - centros[None, None]) ** 2).sum(-1)
-    idx = d.argmin(-1)
-    return {n: idx == i for i, n in enumerate(nomes)}
 
 
 def disco(r):
@@ -145,109 +109,89 @@ def reescalar(d, altura):
     return re.sub(r"(\d)\.0(?=\D)", r"\1", "".join(saida))
 
 
-def chao(lenco, altura):
-    """Sombra do chão e grama: manchas de ocre encostadas na base do recorte."""
-    rot, n = ndimage.label(lenco)
-    saida = np.zeros_like(lenco)
-    base = np.nonzero(lenco.any(1))[0].max() if lenco.any() else 0
-    for i, fatia in enumerate(ndimage.find_objects(rot), 1):
-        if fatia[0].stop >= base - 3 and (fatia[0].stop - fatia[0].start) < 70:
-            saida |= rot == i
-    return saida
 
 
-def camadas(nome, caixa, img):
-    x0, y0, x1, y1 = caixa
-    cores = classificar(img[y0:y1, x0:x1])
-    corpo = cores["corpo"] | cores["corpo2"]
-    lenco, couro, metal = cores["lenco"], cores["couro"], cores["metal"]
-    if nome != "mate":
-        # fora do chimarrão não há metal: o cinza claro é corda (rédeas) ou borda de detalhe
-        metal = np.zeros_like(metal)
+RAIZ = pathlib.Path(__file__).resolve().parents[2]
+REFERENCIA = RAIZ / "marca/original/Folha de Adesivos de Pôneis Fofos.png"
+DESTINO = RAIZ / "app/src/components/Mascote.vue"
 
-    if nome == "espiando":
-        # no lugar da vara, um corte reto: a borda de verdade é a lateral do cartão no app
-        x = int(corpo.sum(0)[:80].argmax()) + 5
-        for m in (corpo, lenco, couro):
-            m[:, :x] = False
+NOMES = ["trote", "parado", "aprovando", "duvida", "espiando", "empinando", "relinchando"]
 
-    solo = chao(lenco | couro, y1 - y0)
-    solo &= lenco  # grama e sombra são ocre; o toco (couro) fica
-    objetos = corpo | lenco | couro | metal
-    # silhueta fechada: preenche olhos, listras e frestas finas entre braço e corpo
-    silhueta = ndimage.binary_fill_holes(ndimage.binary_closing(objetos & ~solo, disco(5)))
-    silhueta = ndimage.binary_opening(silhueta, disco(2))
-    # creme dentro da silhueta: olhos, listras, faixa do chapéu, rédeas (o creme da referência
-    # é o mesmo do fundo, então a separação é por geometria, não por cor)
-    detalhe = silhueta & ~objetos & ~ndimage.binary_dilation(solo, disco(2))
-    rot, n = ndimage.label(detalhe)
-    linhas = np.nonzero(silhueta.any(1))[0]
-    corte = linhas.min() + 0.68 * (linhas.max() - linhas.min())
-    manter = []
-    for i, fatia in enumerate(ndimage.find_objects(rot), 1):
-        area = int((rot[fatia] == i).sum())
-        # frestas entre pernas e braços ficam na parte de baixo: no tema escuro virariam riscos claros
-        if nome == "cavalo":
-            # creme entre os fios da cola é fundo, não detalhe
-            ok = fatia[1].start < 0.72 * silhueta.shape[1]
-        else:
-            ok = fatia[0].start < corte
-        # sobra creme minúscula fora do corpo (a curva do "?") não é detalhe
-        perto = (ndimage.binary_dilation(rot[fatia] == i, disco(3)) & corpo[fatia]).any()
-        if area >= 30 and ok and (perto or area >= 80):
-            manter.append(i)
-    detalhe = np.isin(rot, manter)
-
-    base = (corpo | detalhe | (ndimage.binary_dilation(corpo, disco(3)) & silhueta)) & ~solo
-    # viewBox justo: recorta tudo no retângulo do desenho, com folga para o borrão do traço
-    tudo = base | solo | lenco | couro | metal | detalhe
-    ys, xs = np.nonzero(tudo)
-    folga = 6
-    ya, yb = max(0, ys.min() - folga), min(tudo.shape[0], ys.max() + folga + 1)
-    xa = xs.min() if nome == "espiando" else max(0, xs.min() - folga)  # o corte reto encosta na borda
-    xb = min(tudo.shape[1], xs.max() + folga + 1)
-    base, solo, lenco, couro, metal, detalhe = (m[ya:yb, xa:xb] for m in (base, solo, lenco, couro, metal, detalhe))
-    return {
-        "corpo": tracar(suavizar(base, 3.0), 60),
-        "couro": tracar(suavizar(couro, 1.6)),
-        "lenco": tracar(suavizar(lenco, 1.4), 25),
-        "metal": tracar(suavizar(metal, 0.9), 8),
-        "detalhe": tracar(suavizar(detalhe, 1.1), 20),
-    }, (xb - xa, yb - ya)
-
-
-ORDEM = ("corpo", "couro", "lenco", "metal", "detalhe")
-
-
-def svg_pose(cam, tamanho, cores=None):
-    w, h = tamanho
-    corpo = "".join(
-        f'<path class="m-{k}" d="{cam[k]}"/>' if cores is None else f'<path fill="{cores[k]}" d="{cam[k]}"/>'
-        for k in ORDEM
-        if cam[k]
-    )
-    return w, h, corpo
-
-
-TEMAS = {
-    "claro": {"fundo": "#FAF6EE", "corpo": "#1F2B4D", "couro": "#8A5A3C", "lenco": "#D99A2B",
-              "metal": "#B9BEC8", "detalhe": "#FAF6EE"},
-    "escuro": {"fundo": "#0F1524", "corpo": "#3A4A75", "couro": "#9C6A48", "lenco": "#E3AE4E",
-               "metal": "#C9CED8", "detalhe": "#F3ECDD"},
+CENTROS = {
+    "corpo": (212, 139, 76),
+    "sombra": (176, 104, 44),
+    "crina": (30, 42, 66),
+    "creme": (253, 232, 207),
+    "escuro": (140, 80, 24),
 }
+ORDEM = ("contorno", "corpo", "sombra", "crina", "creme", "escuro")
+
+# as cores do cavalo são as mesmas nos dois temas; no escuro só entra o contorno de adesivo
+CORES = {"corpo": "#D08A4C", "sombra": "#B0682C", "crina": "#1F2B4D", "creme": "#FDE8CF", "escuro": "#8C5018"}
+CONTORNO = {"claro": "transparent", "escuro": "#FAF6EE"}
+FUNDO = {"claro": "#FAF6EE", "escuro": "#0F1524"}
+
+MARGEM = 14  # folga em volta da pose para caber o contorno de adesivo
+ENGORDAR = 10  # espessura do contorno, em px da referência
+
+# recorte de cada pose na folha 1536x1024 (y0, y1, x0, x1): a grade é irregular, então é medida à mão
+CAIXAS = [
+    (0, 490, 0, 500), (0, 490, 500, 830), (0, 490, 830, 1200), (0, 490, 1200, 1536),
+    (500, 1024, 0, 420), (500, 1024, 420, 860), (500, 1024, 860, 1536),
+]
+
+
+def camadas(nome, img, alfa, caixa):
+    y0, y1, x0, x1 = caixa
+    rgb = img[y0:y1, x0:x1]
+    a = alfa[y0:y1, x0:x1]
+    nomes = list(CENTROS)
+    c = np.array([CENTROS[n] for n in nomes], dtype=np.float32)
+    d = ((rgb[:, :, None, :].astype(np.float32) - c[None, None]) ** 2).sum(-1)
+    idx = d.argmin(-1)
+    mascaras = {n: (idx == i) & a for i, n in enumerate(nomes)}
+    # a silhueta fechada vira o corpo: nenhum buraco entre camadas
+    mascaras["corpo"] = ndimage.binary_closing(a, disco(3))
+    ys, xs = np.nonzero(a)
+    ya, yb, xa, xb = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    # o "espiando" tem um lado cortado reto: sem folga à esquerda, para encostar na borda da tela
+    esq = 0 if nome == "espiando" else MARGEM
+    pad = ((MARGEM, MARGEM), (esq, MARGEM))
+    recorte = {n: np.pad(m[ya:yb, xa:xb], pad) for n, m in mascaras.items()}
+    gordo = ndimage.binary_dilation(recorte["corpo"], disco(ENGORDAR))
+    if nome == "espiando":
+        gordo[:, :esq + 1] &= recorte["corpo"][:, :esq + 1]  # nada de contorno do lado da borda
+        gordo[:, 0] = False
+    recorte["contorno"] = gordo
+    ajustes = {"contorno": (2.4, 80), "corpo": (1.4, 60), "sombra": (1.2, 40), "crina": (1.1, 30),
+               "creme": (1.0, 14), "escuro": (1.0, 14)}
+    saida = {n: tracar(suavizar(recorte[n], ajustes[n][0]), ajustes[n][1]) for n in ORDEM}
+    h, w = recorte["corpo"].shape
+    return saida, (w, h)
+
+
+def svg_pose(cam, tam, tema=None):
+    """tema None: classes CSS (componente); 'claro' ou 'escuro': cores fixas (prévia)."""
+    def cor(k):
+        return CONTORNO[tema] if k == "contorno" else CORES[k]
+    return tam[0], tam[1], "".join(
+        (f'<path class="m-{k}" d="{cam[k]}"/>' if tema is None else f'<path fill="{cor(k)}" d="{cam[k]}"/>')
+        for k in ORDEM if cam[k]
+    )
 
 
 def previa(poses, pasta):
     pasta.mkdir(parents=True, exist_ok=True)
-    for tema, cores in TEMAS.items():
-        x, blocos, alt = 30, [], max(t[1] for _, t in poses.values()) + 60
-        for nome, (cam, tam) in poses.items():
-            w, h, corpo = svg_pose(cam, tam, cores)
+    for tema in ("claro", "escuro"):
+        x, blocos = 30, []
+        alt = max(t[1] for _, t in poses.values()) + 60
+        for cam, tam in poses.values():
+            w, h, corpo = svg_pose(cam, tam, tema)
             blocos.append(f'<g transform="translate({x} {alt - h - 30})">{corpo}</g>')
             x += w + 30
         (pasta / f"mascote-{tema}.svg").write_text(
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {x} {alt}" width="{x}" height="{alt}">'
-            f'<rect width="{x}" height="{alt}" fill="{cores["fundo"]}"/>{"".join(blocos)}</svg>'
+            f'<rect width="{x}" height="{alt}" fill="{FUNDO[tema]}"/>{"".join(blocos)}</svg>'
         )
 
 
@@ -257,6 +201,7 @@ def componente(poses):
         w, h, corpo = svg_pose(cam, tam)
         entradas.append(f"  {nome}: {{ w: {w}, h: {h}, svg: `{corpo}` }},")
     tipos = " | ".join(f"'{n}'" for n in poses)
+    regras = "\n".join(f".mascote :deep(.m-{k}) {{ fill: var(--m-{k}); }}" for k in ORDEM)
     return f"""<!-- gerado por marca/fonte/gerar_mascote.py: não editar à mão -->
 <template>
   <svg
@@ -285,38 +230,34 @@ const pose = computed(() => POSES[props.pose])
 
 <style scoped>
 .mascote {{
-  --m-corpo: {TEMAS["claro"]["corpo"]};
-  --m-couro: {TEMAS["claro"]["couro"]};
-  --m-lenco: {TEMAS["claro"]["lenco"]};
-  --m-metal: {TEMAS["claro"]["metal"]};
-  --m-detalhe: {TEMAS["claro"]["detalhe"]};
+  --m-contorno: {CONTORNO["claro"]};
+  --m-corpo: {CORES["corpo"]};
+  --m-sombra: {CORES["sombra"]};
+  --m-crina: {CORES["crina"]};
+  --m-creme: {CORES["creme"]};
+  --m-escuro: {CORES["escuro"]};
   display: block;
   width: 100%;
   height: auto;
 }}
 
+/* no escuro a crina azul-noite sumiria: o contorno creme de adesivo separa o cavalo do fundo */
 @media (prefers-color-scheme: dark) {{
   .mascote {{
-    --m-corpo: {TEMAS["escuro"]["corpo"]};
-    --m-couro: {TEMAS["escuro"]["couro"]};
-    --m-lenco: {TEMAS["escuro"]["lenco"]};
-    --m-metal: {TEMAS["escuro"]["metal"]};
-    --m-detalhe: {TEMAS["escuro"]["detalhe"]};
+    --m-contorno: {CONTORNO["escuro"]};
   }}
 }}
 
-.mascote :deep(.m-corpo) {{ fill: var(--m-corpo); }}
-.mascote :deep(.m-couro) {{ fill: var(--m-couro); }}
-.mascote :deep(.m-lenco) {{ fill: var(--m-lenco); }}
-.mascote :deep(.m-metal) {{ fill: var(--m-metal); }}
-.mascote :deep(.m-detalhe) {{ fill: var(--m-detalhe); }}
+{regras}
 </style>
 """
 
 
 def main():
-    img = np.asarray(Image.open(REFERENCIA).convert("RGB"))
-    poses = {n: camadas(n, c, img) for n, c in POSES.items()}
+    arr = np.asarray(Image.open(REFERENCIA).convert("RGBA"))
+    alfa = arr[:, :, 3] > 128
+    img = arr[:, :, :3]
+    poses = {n: camadas(n, img, alfa, c) for n, c in zip(NOMES, CAIXAS)}
     if "--previa" in sys.argv:
         previa(poses, pathlib.Path(sys.argv[sys.argv.index("--previa") + 1]))
     DESTINO.write_text(componente(poses))

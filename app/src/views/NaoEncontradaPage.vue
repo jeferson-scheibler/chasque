@@ -2,7 +2,7 @@
   <ion-page>
     <ion-content class="perdido">
       <div class="perdido__centro">
-        <mascote pose="cavalo" class="perdido__chasque" />
+        <mascote pose="relinchando" class="perdido__chasque" />
         <h1>Esse caminho não leva a lugar nenhum</h1>
         <p>O link pode estar incompleto ou a página saiu do ar. O chasque volta com você para o começo.</p>
         <router-link class="botao botao--sol" to="/" replace>Voltar para o Chasque</router-link>
