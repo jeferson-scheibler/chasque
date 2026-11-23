@@ -87,6 +87,8 @@ def nome_da_categoria(categoria):
 
 def classificar(tags):
     """Primeira categoria conhecida do objeto, ou None se não interessa ao Chasque."""
+    if tags.get("access") in ("private", "no"):  # jardim de casa, área particular
+        return None
     for chave in ("amenity", "tourism", "craft", "shop", "leisure", "natural", "waterway", "historic"):
         valor = tags.get(chave)
         if valor and f"{chave}={valor}" in CATEGORIAS:

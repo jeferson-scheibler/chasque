@@ -123,7 +123,7 @@ class ExportarView(APIView):
     """Portabilidade (LGPD art. 18): tudo que o Chasque guarda sobre a pessoa, em JSON."""
 
     def get(self, request):
-        from registros.models import PesoGosto, Registro
+        from registros.models import PesoGosto, PreferenciaDeclarada, Registro
         from salvos.models import Salvo
 
         usuario = request.user
@@ -167,6 +167,9 @@ class ExportarView(APIView):
                 }
                 for s in Salvo.objects.filter(usuario=usuario).select_related("lugar")
             ],
+            "preferencias": sorted(
+                PreferenciaDeclarada.objects.filter(usuario=usuario).values_list("tag__slug", flat=True)
+            ),
             "perfil_de_gosto": [
                 {"tag": p.tag.slug, "ocasiao": p.ocasiao, "peso": p.peso}
                 for p in PesoGosto.objects.filter(usuario=usuario).select_related("tag")

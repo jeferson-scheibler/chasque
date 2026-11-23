@@ -1,25 +1,587 @@
 <template>
   <ion-page>
     <faixa titulo="Sugestões" subtitulo="Pelo seu gosto, não pela média" />
+
     <ion-content class="vale">
+      <ion-refresher slot="fixed" @ion-refresh="atualizar($event)">
+        <ion-refresher-content />
+      </ion-refresher>
+
+      <!-- Onde e com quem -->
+      <div v-if="temGosto" class="filtros">
+        <button type="button" class="onde" @click="mostrarOnde = !mostrarOnde">
+          <ion-icon :icon="origem?.tipo === 'localizacao' ? navigateOutline : locationOutline" aria-hidden="true" />
+          <span>{{ origem ? origem.nome : 'Escolher onde' }}</span>
+          <ion-icon :icon="mostrarOnde ? chevronUp : chevronDown" aria-hidden="true" class="onde__seta" />
+        </button>
+        <div v-if="mostrarOnde" class="onde__painel">
+          <button type="button" class="botao botao--leve" :disabled="localizando" @click="usarLocalizacao">
+            <ion-icon :icon="navigateOutline" aria-hidden="true" />
+            {{ localizando ? 'Localizando...' : 'Usar minha localização' }}
+          </button>
+          <escolher-cidade v-model="cidadeId" :cidades="cidades" />
+        </div>
+        <div class="ocasioes" role="radiogroup" aria-label="Com quem você vai">
+          <button
+            v-for="o in OCASIOES"
+            :key="o.valor"
+            type="button"
+            role="radio"
+            :aria-checked="ocasiao === o.valor"
+            :class="{ ativa: ocasiao === o.valor }"
+            @click="ocasiao = o.valor"
+          >
+            {{ o.rotulo }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="carregando && !carregou" class="esqueleto" aria-label="Carregando">
+        <ion-skeleton-text :animated="true" class="esqueleto__destaque" />
+        <ion-skeleton-text v-for="n in 3" :key="n" :animated="true" class="esqueleto__linha" />
+      </div>
+
+      <!-- Primeiros gostos: dá sugestão antes da primeira visita -->
+      <section v-else-if="!temGosto || editandoGostos" class="gostos">
+        <h2>{{ editandoGostos ? 'Seus gostos' : 'Do que você gosta?' }}</h2>
+        <p class="texto-apoio">
+          Marque o que faz um lugar valer a pena para você. Depois, cada visita que você registra afina as sugestões.
+        </p>
+        <template v-for="grupo in gruposDeMotivos" :key="grupo.nome">
+          <h3 class="grupo">{{ grupo.nome }}</h3>
+          <escolhas v-model="gostos" :opcoes="grupo.opcoes" multipla :rotulo="grupo.nome" />
+        </template>
+        <p v-if="erro" class="mensagem-erro" role="alert">{{ erro }}</p>
+        <button type="button" class="botao botao--sol" :disabled="salvandoGostos" @click="salvarGostos">
+          {{ salvandoGostos ? 'Salvando...' : gostos.length ? `Ver sugestões (${gostos.length})` : 'Ver sugestões' }}
+        </button>
+        <button v-if="editandoGostos" type="button" class="botao botao--texto" @click="editandoGostos = false">Cancelar</button>
+      </section>
+
       <vazio
-        titulo="Suas sugestões nascem do que você guarda"
-        texto="Cada lugar que você salva ensina ao Chasque do que você gosta. Comece por um post ou reel que te deu vontade de ir."
+        v-else-if="!origem"
+        titulo="Onde você quer procurar?"
+        texto="Use a sua localização ou escolha uma cidade do RS."
       >
-        <button class="botao botao--sol botao--compacto" type="button" @click="adicionar.abrir()">
-          <ion-icon :icon="logoInstagram" aria-hidden="true" />Salvar do Instagram
+        <button type="button" class="botao botao--sol botao--compacto" @click="usarLocalizacao">
+          <ion-icon :icon="navigateOutline" aria-hidden="true" />Usar minha localização
         </button>
       </vazio>
+
+      <vazio
+        v-else-if="!resultados.length"
+        titulo="Nada por perto combina ainda"
+        texto="Tente outra cidade ou outra ocasião. Cada visita que você registra ajuda o Chasque a achar mais lugares."
+      />
+
+      <template v-else>
+        <!-- A melhor combinação: o único destaque da tela -->
+        <article class="destaque">
+          <span class="destaque__brilho" aria-hidden="true" />
+          <p class="destaque__rotulo">A que mais combina com você</p>
+          <h2>{{ primeira.lugar.nome }}</h2>
+          <p class="destaque__meta">{{ metaDo(primeira) }}</p>
+          <p class="destaque__combina">
+            <span v-for="slug in primeira.combina" :key="slug">{{ motivos.nome(slug) }}</span>
+          </p>
+          <div class="destaque__acoes">
+            <a class="botao botao--sol botao--compacto" :href="rota(primeira)" target="_blank" rel="noopener noreferrer">
+              <ion-icon :icon="navigateOutline" aria-hidden="true" />Como chegar
+            </a>
+            <router-link class="destaque__fui" :to="{ path: '/abas/lugares/visita/nova', query: { lugar: primeira.lugar.id } }">
+              Já fui
+            </router-link>
+          </div>
+        </article>
+
+        <h2 v-if="demais.length" class="secao-titulo">Também combinam</h2>
+        <ul class="linhas">
+          <li v-for="s in demais" :key="s.lugar.id">
+            <button type="button" class="linha" @click="acoes(s)">
+              <span class="linha__icone"><ion-icon :icon="iconeDaCategoria(s.lugar.categoria)" aria-hidden="true" /></span>
+              <span class="linha__texto">
+                <span class="linha__titulo">{{ s.lugar.nome }}</span>
+                <span class="linha__meta">{{ metaDo(s) }}</span>
+                <span class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
+              </span>
+              <span v-if="s.salvo" class="salvo">Salvo</span>
+            </button>
+          </li>
+        </ul>
+
+        <p class="rodape-sugestoes">
+          <button type="button" class="ajustar" @click="abrirGostos">Ajustar meus gostos</button>
+        </p>
+      </template>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonContent, IonIcon, IonPage } from '@ionic/vue'
-import { logoInstagram } from 'ionicons/icons'
+import {
+  actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
+  onIonViewWillEnter, type RefresherCustomEvent,
+} from '@ionic/vue'
+import { chevronDown, chevronUp, locationOutline, navigateOutline } from 'ionicons/icons'
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import EscolherCidade from '@/components/EscolherCidade.vue'
+import Escolhas from '@/components/Escolhas.vue'
 import Faixa from '@/components/Faixa.vue'
 import Vazio from '@/components/Vazio.vue'
-import { useAdicionar } from '@/stores/adicionar'
+import { iconeDaCategoria } from '@/categorias'
+import { api, ErroApi, mensagemDe } from '@/services/api'
+import { useMotivos } from '@/stores/motivos'
+import { resumoDoLugar, type Cidade, type Lugar } from '@/types'
 
-const adicionar = useAdicionar()
+interface Sugestao {
+  lugar: Lugar
+  pontos: number
+  combina: string[]
+  salvo: boolean
+}
+interface Resposta {
+  origem: { tipo: 'localizacao' | 'cidade' | 'ultima_visita'; nome: string; cidade_id: number | null } | null
+  tem_gosto: boolean
+  resultados: Sugestao[]
+}
+
+const OCASIOES = [
+  { valor: '', rotulo: 'Qualquer' },
+  { valor: 'sozinho', rotulo: 'Sozinho' },
+  { valor: 'casal', rotulo: 'Casal' },
+  { valor: 'familia', rotulo: 'Família' },
+  { valor: 'amigos', rotulo: 'Amigos' },
+  { valor: 'trabalho', rotulo: 'Trabalho' },
+]
+const CHAVE = 'chasque-sugestoes'
+
+const router = useRouter()
+const motivos = useMotivos()
+
+const carregando = ref(false)
+const carregou = ref(false)
+const resultados = ref<Sugestao[]>([])
+const origem = ref<Resposta['origem']>(null)
+const temGosto = ref(true)
+const erro = ref('')
+
+// onde procurar: posição (só quando a pessoa toca) ou cidade; lembrado neste aparelho
+const posicao = ref<{ lat: number; lng: number } | null>(null)
+const cidadeId = ref<number | null>(null)
+const ocasiao = ref('')
+const mostrarOnde = ref(false)
+const localizando = ref(false)
+const cidades = ref<Cidade[]>([])
+
+const gostos = ref<string[]>([])
+const editandoGostos = ref(false)
+const salvandoGostos = ref(false)
+
+const primeira = computed(() => resultados.value[0])
+const demais = computed(() => resultados.value.slice(1))
+const gruposDeMotivos = computed(() =>
+  motivos.grupos.map((g) => ({ nome: g.nome, opcoes: g.motivos.map((m) => ({ valor: m.slug, rotulo: m.nome })) })),
+)
+
+try {
+  const salvo = JSON.parse(localStorage.getItem(CHAVE) ?? '{}')
+  if (typeof salvo.cidadeId === 'number') cidadeId.value = salvo.cidadeId
+  if (typeof salvo.ocasiao === 'string') ocasiao.value = salvo.ocasiao
+} catch {
+  // sem armazenamento (aba anônima): começa do padrão
+}
+
+function lembrar() {
+  try {
+    localStorage.setItem(CHAVE, JSON.stringify({ cidadeId: cidadeId.value, ocasiao: ocasiao.value }))
+  } catch {
+    // tudo bem não lembrar
+  }
+}
+
+function distancia(m: number | null) {
+  if (m === null) return ''
+  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`
+}
+
+function metaDo(s: Sugestao) {
+  return [resumoDoLugar(s.lugar), distancia(s.lugar.distancia_m)].filter(Boolean).join(', ')
+}
+
+function listaDeMotivos(slugs: string[]) {
+  const nomes = slugs.map((s) => motivos.nome(s).toLowerCase())
+  return nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0] ?? ''
+}
+
+function rota(s: Sugestao) {
+  // Só um link para o app de mapas do celular; nada do Google é guardado.
+  return `https://www.google.com/maps/dir/?api=1&destination=${s.lugar.lat},${s.lugar.lng}`
+}
+
+async function carregar() {
+  carregando.value = true
+  erro.value = ''
+  try {
+    await motivos.carregar()
+    const p = new URLSearchParams()
+    if (posicao.value) {
+      p.set('lat', String(posicao.value.lat))
+      p.set('lng', String(posicao.value.lng))
+    } else if (cidadeId.value) {
+      p.set('cidade_id', String(cidadeId.value))
+    }
+    if (ocasiao.value) p.set('ocasiao', ocasiao.value)
+    const r = await api<Resposta>(`/sugestoes/?${p}`)
+    resultados.value = r.resultados
+    origem.value = r.origem
+    temGosto.value = r.tem_gosto
+    if (!r.tem_gosto && !gostos.value.length) {
+      gostos.value = (await api<{ tags: string[] }>('/me/preferencias/')).tags
+    }
+  } catch (e) {
+    erro.value = e instanceof ErroApi ? e.message : 'Sem conexão com o servidor.'
+  } finally {
+    carregando.value = false
+    carregou.value = true
+  }
+}
+
+async function atualizar(evento: RefresherCustomEvent) {
+  await carregar()
+  await evento.target.complete()
+}
+
+function usarLocalizacao() {
+  if (!('geolocation' in navigator)) return
+  localizando.value = true
+  // Só pede a posição quando a pessoa toca no botão; nada roda em segundo plano.
+  navigator.geolocation.getCurrentPosition(
+    (p) => {
+      posicao.value = { lat: p.coords.latitude, lng: p.coords.longitude }
+      localizando.value = false
+      mostrarOnde.value = false
+      void carregar()
+    },
+    () => {
+      localizando.value = false
+      mostrarOnde.value = true
+    },
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
+  )
+}
+
+async function abrirGostos() {
+  gostos.value = (await api<{ tags: string[] }>('/me/preferencias/')).tags
+  editandoGostos.value = true
+}
+
+async function salvarGostos() {
+  erro.value = ''
+  if (!gostos.value.length) {
+    erro.value = 'Marque pelo menos um.'
+    return
+  }
+  salvandoGostos.value = true
+  try {
+    await api('/me/preferencias/', { method: 'PUT', json: { tags: gostos.value } })
+    editandoGostos.value = false
+    await carregar()
+  } catch (e) {
+    erro.value = e instanceof ErroApi ? mensagemDe(e.dados) ?? e.message : 'Sem conexão com o servidor.'
+  } finally {
+    salvandoGostos.value = false
+  }
+}
+
+async function acoes(s: Sugestao) {
+  const folha = await actionSheetController.create({
+    header: s.lugar.nome,
+    subHeader: metaDo(s),
+    buttons: [
+      { text: 'Como chegar', handler: () => { window.open(rota(s), '_blank', 'noopener') } },
+      { text: 'Já fui, registrar visita', handler: () => { void router.push({ path: '/abas/lugares/visita/nova', query: { lugar: s.lugar.id } }) } },
+      { text: 'Fechar', role: 'cancel' },
+    ],
+  })
+  await folha.present()
+}
+
+watch(cidadeId, (novo) => {
+  if (novo) {
+    posicao.value = null
+    mostrarOnde.value = false
+    lembrar()
+    void carregar()
+  }
+})
+
+watch(ocasiao, () => {
+  lembrar()
+  void carregar()
+})
+
+watch(mostrarOnde, async (aberto) => {
+  if (aberto && !cidades.value.length) cidades.value = await api<Cidade[]>('/cidades/')
+})
+
+onIonViewWillEnter(() => { void carregar() })
 </script>
+
+<style scoped>
+.filtros {
+  padding: 0 16px 6px;
+}
+
+.onde {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--chasque-neblina);
+  background: var(--chasque-papel);
+  color: var(--chasque-tinta);
+  font: inherit;
+  font-weight: 600;
+}
+
+.onde ion-icon {
+  font-size: 18px;
+  color: var(--chasque-ocre);
+  flex: none;
+}
+
+.onde span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.onde .onde__seta {
+  color: var(--chasque-tinta-suave);
+}
+
+.onde__painel {
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--chasque-papel);
+  border: 1px solid var(--chasque-neblina);
+}
+
+.onde__painel .botao {
+  height: 46px;
+  margin-bottom: 14px;
+}
+
+.ocasioes {
+  display: flex;
+  gap: 8px;
+  margin: 12px -16px 0;
+  padding: 0 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ocasioes::-webkit-scrollbar {
+  display: none;
+}
+
+.ocasioes button {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--chasque-neblina);
+  color: var(--chasque-tinta);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.ocasioes button.ativa {
+  background: var(--chasque-faixa);
+  color: var(--chasque-faixa-texto);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocasioes button.ativa {
+    background: var(--chasque-faixa-texto);
+    color: var(--chasque-faixa);
+  }
+}
+
+.gostos {
+  padding: 4px 20px 24px;
+}
+
+.gostos h2 {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  color: var(--chasque-tinta);
+}
+
+.gostos .botao {
+  margin-top: 22px;
+}
+
+.grupo {
+  margin: 16px 0 8px;
+  font-family: var(--ion-font-family);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--chasque-tinta-suave);
+}
+
+/* A melhor combinação: cartão Noite com o brilho do sol nascendo no canto. */
+.destaque {
+  position: relative;
+  overflow: hidden;
+  margin: 14px 16px 6px;
+  padding: 22px 20px 20px;
+  border-radius: 24px;
+  background: var(--chasque-faixa);
+  color: var(--chasque-faixa-texto);
+}
+
+@media (prefers-color-scheme: dark) {
+  .destaque {
+    background: #1a2440;
+    border: 1px solid var(--chasque-neblina);
+  }
+}
+
+.destaque__brilho {
+  position: absolute;
+  right: -70px;
+  top: -70px;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--chasque-ocre) 0 26%, color-mix(in srgb, var(--chasque-ocre) 35%, transparent) 27%, transparent 68%);
+  opacity: 0.9;
+  animation: nascer-sol 1.4s cubic-bezier(0.16, 0.8, 0.24, 1) both;
+}
+
+@keyframes nascer-sol {
+  from {
+    transform: translate(-10px, 40px) scale(0.85);
+    opacity: 0;
+  }
+}
+
+.destaque__rotulo {
+  position: relative;
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--chasque-faixa-suave);
+}
+
+.destaque h2 {
+  position: relative;
+  margin: 0;
+  max-width: 78%;
+  font-size: 1.65rem;
+  font-weight: 650;
+  line-height: 1.15;
+  color: var(--chasque-faixa-texto);
+}
+
+.destaque__meta {
+  position: relative;
+  margin: 6px 0 14px;
+  color: var(--chasque-faixa-suave);
+}
+
+.destaque__combina {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+
+.destaque__combina span {
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--chasque-faixa-vidro);
+  color: var(--chasque-faixa-texto);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.destaque__acoes {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.destaque__fui {
+  color: var(--chasque-faixa-texto);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--chasque-ocre);
+  text-underline-offset: 4px;
+}
+
+.combina {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--chasque-tinta);
+}
+
+.salvo {
+  flex: none;
+  align-self: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chasque-ocre) 18%, transparent);
+  color: var(--chasque-tinta);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rodape-sugestoes {
+  margin: 18px 0 0;
+  text-align: center;
+}
+
+.ajustar {
+  border: 0;
+  background: transparent;
+  color: var(--chasque-tinta-suave);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  padding: 10px;
+}
+
+.esqueleto {
+  padding: 14px 16px;
+}
+
+.esqueleto__destaque {
+  height: 190px;
+  border-radius: 24px;
+  margin: 0 0 18px;
+}
+
+.esqueleto__linha {
+  height: 58px;
+  border-radius: 14px;
+  margin: 0 0 12px;
+}
+
+ion-skeleton-text {
+  --background: var(--chasque-neblina);
+  --background-rgb: 235, 228, 213;
+}
+</style>

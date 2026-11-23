@@ -40,6 +40,7 @@ class ClassificacaoTests(TestCase):
         self.assertEqual(osm.classificar({"amenity": "cafe"}), "amenity=cafe")
         self.assertEqual(osm.classificar({"craft": "winery", "shop": "wine"}), "craft=winery")
         self.assertIsNone(osm.classificar({"amenity": "parking"}))
+        self.assertIsNone(osm.classificar({"leisure": "garden", "access": "private"}))
 
     def test_tags_iniciais(self):
         self.assertEqual(osm.tags_iniciais({"tourism": "viewpoint"}, "tourism=viewpoint"), {"vista-bonita"})

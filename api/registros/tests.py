@@ -137,3 +137,119 @@ class IntegracaoTests(Base):
         self.assertTrue(exportado["perfil_de_gosto"])
         self.client.delete("/api/me/", {"senha": "x" * 12}, format="json")
         self.assertFalse(Registro.objects.filter(usuario__email="ana@exemplo.com").exists())
+
+
+class SugestoesTests(Base):
+    url_sug = "/api/sugestoes/"
+
+    def setUp(self):
+        super().setUp()
+        from lugares.models import Cidade, Tag
+
+        self.lajeado = Cidade.objects.create(nome="Lajeado", ponto=Point(-51.9617, -29.4669), id_externo="node/9")
+        self.tag = {t.slug: t for t in Tag.objects.all()}
+        # o café da Base (já tem lugar próprio) recebe motivos para a Ana visitar
+        self.cafe.tags.set([self.tag["cafe-colonial"], self.tag["silencioso"]])
+        self.colonial_perto = self.lugar("Casa da Cuca", -51.965, -29.468, ["cafe-colonial", "silencioso"])
+        self.colonial_longe = self.lugar("Cuca da Serra", -51.78, -29.36, ["cafe-colonial", "silencioso"])  # uns 20 km
+        self.bar_perto = self.lugar("Bar do Centro", -51.962, -29.467, ["animado", "musica-ao-vivo"])
+        self.sem_tag = self.lugar("Loja Qualquer", -51.961, -29.466, [])
+
+    def lugar(self, nome, lng, lat, slugs):
+        lugar = Lugar.objects.create(nome=nome, ponto=Point(lng, lat), fonte="osm", id_externo=f"node/{nome}",
+                                     cidade="Lajeado")
+        lugar.tags.set([self.tag[s] for s in slugs])
+        return lugar
+
+    def sugerir(self, **params):
+        params.setdefault("lat", -29.4669)
+        params.setdefault("lng", -51.9617)
+        return self.client.get(self.url_sug, params)
+
+    def nomes(self, r):
+        return [s["lugar"]["nome"] for s in r.data["resultados"]]
+
+    def test_sem_gosto_nao_sugere_e_avisa(self):
+        r = self.sugerir()
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.data["tem_gosto"])
+        self.assertEqual(r.data["resultados"], [])
+
+    def test_visita_ensina_e_o_perto_vem_antes_do_longe(self):
+        self.registrar(nota=5, tags=["cafe-colonial", "silencioso"])
+        r = self.sugerir()
+        self.assertTrue(r.data["tem_gosto"])
+        self.assertEqual(self.nomes(r), ["Casa da Cuca", "Cuca da Serra"])
+        self.assertEqual(r.data["resultados"][0]["combina"], ["cafe-colonial", "silencioso"])
+        self.assertIsNotNone(r.data["resultados"][0]["lugar"]["distancia_m"])
+
+    def test_lugar_visitado_e_lugar_que_desagradou_ficam_de_fora(self):
+        self.registrar(nota=5, tags=["cafe-colonial"])
+        self.registrar(lugar_id=self.cascata.id, nota=1, tags=["animado"])
+        nomes = self.nomes(self.sugerir())
+        self.assertNotIn("Café da Praça", nomes)  # já visitado
+        self.assertNotIn("Bar do Centro", nomes)  # animado pesou contra
+        self.assertNotIn("Loja Qualquer", nomes)  # nenhum motivo em comum
+
+    def test_preferencias_declaradas_dao_sugestao_antes_da_primeira_visita(self):
+        r = self.client.put("/api/me/preferencias/", {"tags": ["musica-ao-vivo"]}, format="json")
+        self.assertEqual(r.data, {"tags": ["musica-ao-vivo"]})
+        r = self.sugerir()
+        self.assertTrue(r.data["tem_gosto"])
+        self.assertEqual(self.nomes(r), ["Bar do Centro"])
+
+    def test_ocasiao_usa_o_gosto_daquela_ocasiao(self):
+        self.registrar(lugar_id=self.cascata.id, nota=5, tags=["animado"], ocasiao="amigos")
+        self.registrar(nota=5, tags=["silencioso"], ocasiao="casal")
+        casal = self.nomes(self.sugerir(ocasiao="casal"))
+        amigos = self.nomes(self.sugerir(ocasiao="amigos"))
+        self.assertEqual(casal[0], "Casa da Cuca")
+        self.assertEqual(amigos[0], "Bar do Centro")
+        self.assertEqual(self.sugerir(ocasiao="festa").status_code, 400)
+
+    def test_salvo_ganha_destaque(self):
+        self.client.put("/api/me/preferencias/", {"tags": ["silencioso"]}, format="json")
+        Salvo.objects.create(usuario=self.ana, lugar=self.colonial_longe, url="https://www.instagram.com/p/XYZ123/",
+                             tipo="post")
+        r = self.sugerir()
+        salvo = next(s for s in r.data["resultados"] if s["lugar"]["nome"] == "Cuca da Serra")
+        self.assertTrue(salvo["salvo"])
+
+    def test_origem_cai_na_cidade_da_pessoa_e_depois_na_ultima_visita(self):
+        self.client.put("/api/me/preferencias/", {"tags": ["silencioso"]}, format="json")
+        r = self.client.get(self.url_sug)
+        self.assertIsNone(r.data["origem"])  # sem posição, sem cidade, sem visita
+        self.ana.cidade_base = "lajeado"
+        self.ana.save()
+        r = self.client.get(self.url_sug)
+        self.assertEqual((r.data["origem"]["tipo"], r.data["origem"]["nome"]), ("cidade", "Lajeado"))
+        self.assertTrue(r.data["resultados"])
+        r = self.client.get(self.url_sug, {"cidade_id": self.lajeado.id})
+        self.assertEqual(r.data["origem"]["cidade_id"], self.lajeado.id)
+
+    def test_gosto_de_outra_pessoa_nao_entra(self):
+        self.client.force_authenticate(self.bia)
+        self.registrar(nota=5, tags=["cafe-colonial", "silencioso"])
+        self.client.force_authenticate(self.ana)
+        self.assertEqual(self.sugerir().data["resultados"], [])
+
+    def test_motivo_raro_vale_mais_que_motivo_comum(self):
+        # "natureza" em muitos lugares, "cerveja-artesanal" em um só
+        for i in range(12):
+            self.lugar(f"Praça {i}", -51.9615 - i * 0.0004, -29.4665, ["natureza"])
+        cervejaria = self.lugar("Cervejaria do Vale", -51.990, -29.480, ["cerveja-artesanal"])
+        self.client.put("/api/me/preferencias/", {"tags": ["natureza", "cerveja-artesanal"]}, format="json")
+        nomes = self.nomes(self.sugerir())
+        self.assertEqual(nomes[0], cervejaria.nome)  # mais longe, mas mais específica
+
+    def test_topo_tem_variedade_de_categorias(self):
+        for i in range(6):
+            lugar = self.lugar(f"Parque {i}", -51.9616 - i * 0.0003, -29.4668, ["natureza"])
+            lugar.categoria = "leisure=park"
+            lugar.save()
+        mirante = self.lugar("Mirante", -51.93, -29.45, ["natureza"])
+        mirante.categoria = "tourism=viewpoint"
+        mirante.save()
+        self.client.put("/api/me/preferencias/", {"tags": ["natureza"]}, format="json")
+        nomes = self.nomes(self.sugerir())
+        self.assertIn("Mirante", nomes[:3])  # sem a regra, os 6 parques viriam antes

@@ -78,6 +78,8 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET | `/api/tags/` | Motivos que dá para marcar numa visita, com o grupo (ambiente, preço, comida...). |
 | GET, POST | `/api/registros/` | Visitas da pessoa (`?q=` busca no motivo, no lugar e na cidade) ou registra uma (`lugar_id`, `nota` 1 a 5, `ocasiao`, `tags`, `motivo`, `visitado_em`). |
 | GET, PATCH, DELETE | `/api/registros/<id>/` | Ver, editar ou apagar uma visita. |
+| GET | `/api/sugestoes/` | Lugares pelo gosto da pessoa (`?lat=&lng=` ou `?cidade_id=`, e `?ocasiao=`). Sem local, usa a cidade da pessoa ou a última visita. |
+| GET, PUT | `/api/me/preferencias/` | Gostos escolhidos antes das visitas (`tags`). |
 | GET | `/api/healthz` | Saúde da API e do banco. |
 
 ## Base de lugares (OpenStreetMap)
@@ -145,8 +147,8 @@ Onde o compartilhamento funciona hoje:
 
 ## Próximas etapas
 
-1. Onboarding de gostos (`PreferenciaDeclarada`) e primeira sugestão por tags, ocasião e distância.
-2. Mapa com MapLibre e tiles PMTiles próprios.
+1. Mapa com MapLibre e tiles PMTiles próprios.
+2. Enriquecer os motivos dos lugares com o que as pessoas marcam nas visitas (hoje vêm só do OSM).
 
 ## Registro de visita e perfil de gosto
 
@@ -155,4 +157,17 @@ Exige pelo menos um motivo marcado ou escrito: o porquê é o que o Chasque guar
 
 Cada visita alimenta o perfil de gosto (`PesoGosto`), recalculado a cada registro, edição ou exclusão:
 a visita soma `(nota - 3) / 2` a cada motivo marcado, no geral e na ocasião. Nota 5 soma +1, nota 3 não
-muda nada, nota 1 soma -1. As sugestões vão ler esses pesos.
+muda nada, nota 1 soma -1.
+
+## Sugestões
+
+Cada lugar num raio de 30 km soma o peso que a pessoa dá aos motivos que ele tem (`registros/sugestoes.py`):
+
+- peso do motivo = perfil de gosto + 0,75 se a pessoa o escolheu nos primeiros gostos; com ocasião,
+  vale o peso daquela ocasião mais metade do geral;
+- motivo raro vale mais que comum: fator `1 + log10(total / lugares com o motivo) / 2`
+  ("natureza" está em centenas de praças, "cerveja artesanal" em poucos lugares);
+- salvos em "Quero conhecer" ganham +0,5; a distância desconta (a 10 km o lugar vale metade);
+- lugares já visitados ficam de fora, e no topo vão no máximo 2 da mesma categoria.
+
+Cada sugestão diz com o que combina. Sem visitas nem gostos, a tela pede os primeiros gostos.
