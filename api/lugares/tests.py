@@ -173,7 +173,7 @@ class BuscaTests(Autenticado):
 
     def test_lista_cidades(self):
         r = self.client.get("/api/cidades/")
-        self.assertEqual(r.data, [{"id": self.lajeado.id, "nome": "Lajeado"}])
+        self.assertEqual(r.data, [{"id": self.lajeado.id, "nome": "Lajeado", "lat": -29.4669, "lng": -51.9617}])
 
 
 class CriarLugarTests(Autenticado):

@@ -43,6 +43,7 @@ services:
     restart: unless-stopped
     environment:
       API_PROXY_TARGET: http://api:8000
+      MAPA_PROXY_TARGET: http://mapa:80
       APP_HOSTS: ${APP_HOSTS:-}
     volumes:
       - ./app:/app
@@ -51,6 +52,15 @@ services:
       - "127.0.0.1:5180:5173"
     depends_on:
       - api
+      - mapa
+
+  # Entrega o arquivo do mapa (dados/mapa/rs.pmtiles, gerado por scripts/gerar-mapa.sh).
+  # O nginx atende pedidos parciais (Range), que é como o PMTiles lê só os pedaços que a tela precisa.
+  mapa:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./dados/mapa:/usr/share/nginx/html/tiles:ro
 
 volumes:
   db_data:

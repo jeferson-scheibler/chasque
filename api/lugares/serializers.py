@@ -5,9 +5,18 @@ from .osm import nome_da_categoria
 
 
 class CidadeSerializer(serializers.ModelSerializer):
+    lat = serializers.SerializerMethodField()
+    lng = serializers.SerializerMethodField()
+
     class Meta:
         model = Cidade
-        fields = ["id", "nome"]
+        fields = ["id", "nome", "lat", "lng"]
+
+    def get_lat(self, cidade):
+        return round(cidade.ponto.y, 5)
+
+    def get_lng(self, cidade):
+        return round(cidade.ponto.x, 5)
 
 
 class TagSerializer(serializers.ModelSerializer):

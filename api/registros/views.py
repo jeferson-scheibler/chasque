@@ -8,7 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from lugares.models import Cidade, Tag
+from lugares.osm import nome_da_categoria
 from lugares.serializers import LugarSerializer
+from salvos.models import Salvo
 
 from .models import Ocasiao, PesoGosto, PreferenciaDeclarada, Registro
 from .perfil import recalcular_perfil
@@ -141,3 +143,48 @@ class PreferenciasView(APIView):
                 PreferenciaDeclarada(usuario=request.user, tag=tag) for tag in set(entrada.validated_data["tags"])
             )
         return self.get(request)
+
+
+class MapaView(APIView):
+    """Os lugares da pessoa em GeoJSON: os que ela quer conhecer e os que já visitou.
+
+    Um lugar salvo e visitado aparece uma vez só, como visitado."""
+
+    def get(self, request):
+        lugares = {}
+
+        def item(lugar):
+            return lugares.setdefault(lugar.id, {
+                "lugar": lugar, "salvo_id": None, "visita_id": None, "visitas": 0, "nota": None,
+            })
+
+        for salvo in Salvo.objects.filter(usuario=request.user, lugar__isnull=False).select_related("lugar"):
+            item(salvo.lugar)["salvo_id"] = salvo.id
+        for registro in (
+            Registro.objects.filter(usuario=request.user).select_related("lugar").order_by("visitado_em", "id")
+        ):
+            dados = item(registro.lugar)
+            dados["visitas"] += 1
+            dados["visita_id"] = registro.id  # a mais recente fica por último
+            dados["nota"] = registro.nota
+
+        features = []
+        for dados in lugares.values():
+            lugar = dados["lugar"]
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [lugar.ponto.x, lugar.ponto.y]},
+                "properties": {
+                    "lugar_id": lugar.id,
+                    "nome": lugar.nome,
+                    "categoria": lugar.categoria,
+                    "categoria_nome": nome_da_categoria(lugar.categoria),
+                    "cidade": lugar.cidade,
+                    "tipo": "visitado" if dados["visitas"] else "salvo",
+                    "salvo_id": dados["salvo_id"],
+                    "visita_id": dados["visita_id"],
+                    "visitas": dados["visitas"],
+                    "nota": dados["nota"],
+                },
+            })
+        return Response({"type": "FeatureCollection", "features": features})

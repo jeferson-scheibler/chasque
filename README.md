@@ -80,6 +80,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET, PATCH, DELETE | `/api/registros/<id>/` | Ver, editar ou apagar uma visita. |
 | GET | `/api/sugestoes/` | Lugares pelo gosto da pessoa (`?lat=&lng=` ou `?cidade_id=`, e `?ocasiao=`). Sem local, usa a cidade da pessoa ou a última visita. |
 | GET, PUT | `/api/me/preferencias/` | Gostos escolhidos antes das visitas (`tags`). |
+| GET | `/api/mapa/` | Os lugares da pessoa em GeoJSON (salvos e visitados, sem repetir). |
 | GET | `/api/healthz` | Saúde da API e do banco. |
 
 ## Base de lugares (OpenStreetMap)
@@ -100,6 +101,26 @@ Pode rodar de novo: atualiza pelo id do OSM sem duplicar.
 Os motivos iniciais de cada lugar (ex.: `vista-bonita`, `churrasco`, `aceita-pet`) saem das tags do OSM.
 
 Os dados do OSM são ODbL: a atribuição "© colaboradores do OpenStreetMap" aparece na busca de lugares.
+
+## Mapa
+
+O mapa é do próprio Chasque: um arquivo PMTiles do RS gerado do OpenStreetMap, sem Google nem servidor de
+terceiros. Ninguém de fora fica sabendo onde as pessoas olham.
+
+```bash
+./scripts/gerar-mapa.sh
+```
+
+Recorta o RS pelo contorno do estado no arquivo da Geofabrik (`dados/osm/`) com o `osmium` e gera
+`dados/mapa/rs.pmtiles` (cerca de 150 MB, zoom até 14) com o `tilemaker`, os dois do Debian, numa imagem
+própria (`mapa/Dockerfile`). Leva uns 25 minutos e precisa de uns 5 GB livres durante a geração.
+
+- **Entrega:** o serviço `mapa` do Compose (nginx) entrega o arquivo em `/tiles/`, atendendo pedidos parciais
+  (Range): o app baixa só os pedaços da área na tela. Em desenvolvimento o Vite repassa `/tiles` para ele.
+- **Estilo:** `app/src/mapa/estilo.ts`, nas cores da marca, com versão clara e escura.
+- **Rótulos:** as fontes Noto Sans ficam em `app/public/mapa/fontes/` (do projeto Protomaps basemaps-assets, OFL).
+- **Na tela:** visitados viram sóis ocre, e os que a pessoa quer conhecer, pontos Noite. Tocar abre um cartão
+  com "Ver" e "Como chegar". A localização só é pedida quando a pessoa toca no botão.
 
 ## Salvar lugares do Instagram
 
@@ -147,8 +168,7 @@ Onde o compartilhamento funciona hoje:
 
 ## Próximas etapas
 
-1. Mapa com MapLibre e tiles PMTiles próprios.
-2. Enriquecer os motivos dos lugares com o que as pessoas marcam nas visitas (hoje vêm só do OSM).
+1. Enriquecer os motivos dos lugares com o que as pessoas marcam nas visitas (hoje vêm só do OSM).
 
 ## Registro de visita e perfil de gosto
 

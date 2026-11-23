@@ -253,3 +253,24 @@ class SugestoesTests(Base):
         self.client.put("/api/me/preferencias/", {"tags": ["natureza"]}, format="json")
         nomes = self.nomes(self.sugerir())
         self.assertIn("Mirante", nomes[:3])  # sem a regra, os 6 parques viriam antes
+
+
+class MapaTests(Base):
+    def test_lugares_salvos_e_visitados_sem_repetir(self):
+        Salvo.objects.create(usuario=self.ana, lugar=self.cafe, url="https://www.instagram.com/p/AAAAA1/", tipo="post")
+        Salvo.objects.create(usuario=self.ana, lugar=self.cascata, url="https://www.instagram.com/p/AAAAA2/", tipo="post")
+        Salvo.objects.create(usuario=self.ana, url="https://www.instagram.com/p/AAAAA3/", tipo="post")  # sem lugar
+        self.registrar(nota=4, visitado_em="2026-01-01")
+        ultima = self.registrar(nota=5).data["id"]
+        self.client.force_authenticate(self.bia)
+        self.registrar(lugar_id=self.cascata.id, tags=["natureza"])
+        self.client.force_authenticate(self.ana)
+
+        r = self.client.get("/api/mapa/")
+        self.assertEqual(r.data["type"], "FeatureCollection")
+        por_nome = {f["properties"]["nome"]: f for f in r.data["features"]}
+        self.assertEqual(set(por_nome), {"Café da Praça", "Cascata do Moinho"})
+        cafe = por_nome["Café da Praça"]["properties"]
+        self.assertEqual((cafe["tipo"], cafe["visitas"], cafe["nota"], cafe["visita_id"]), ("visitado", 2, 5, ultima))
+        self.assertEqual(por_nome["Cascata do Moinho"]["properties"]["tipo"], "salvo")  # a visita da Bia não conta
+        self.assertEqual(por_nome["Café da Praça"]["geometry"]["coordinates"], [-51.96, -29.46])

@@ -51,6 +51,8 @@ export const NOTAS = ['', 'Não gostei', 'Podia ser melhor', 'Foi ok', 'Gostei',
 export interface Cidade {
   id: number
   nome: string
+  lat: number
+  lng: number
 }
 
 export interface Pagina<T> {
