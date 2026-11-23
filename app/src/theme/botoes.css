@@ -1,0 +1,183 @@
+/* Botões do Chasque. Noite para a ação principal, ocre só para o "sol" (salvar, adicionar). */
+.botao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 54px;
+  border: 0;
+  border-radius: 16px;
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.2s ease;
+}
+
+.botao:active {
+  transform: scale(0.98);
+}
+
+.botao:disabled {
+  opacity: 0.65;
+}
+
+.botao ion-icon {
+  font-size: 20px;
+}
+
+.botao--noite {
+  background: var(--chasque-faixa);
+  color: var(--chasque-faixa-texto);
+}
+
+@media (prefers-color-scheme: dark) {
+  .botao--noite {
+    background: var(--chasque-faixa-texto);
+    color: var(--chasque-faixa);
+  }
+}
+
+.botao--sol {
+  background: var(--chasque-ocre);
+  color: var(--chasque-sobre-ocre);
+  box-shadow: 0 10px 24px -10px var(--chasque-ocre-brilho);
+}
+
+.botao--leve {
+  background: transparent;
+  color: var(--chasque-tinta);
+  border: 1.5px solid var(--chasque-neblina);
+}
+
+.botao--texto {
+  background: transparent;
+  color: var(--chasque-tinta);
+  height: 46px;
+  font-weight: 600;
+}
+
+.botao--perigo {
+  background: transparent;
+  color: var(--ion-color-danger);
+  height: 46px;
+  font-weight: 600;
+}
+
+.botao--compacto {
+  width: auto;
+  height: 46px;
+  padding: 0 22px;
+  display: inline-flex;
+}
+
+.mensagem-erro {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ion-color-danger) 12%, transparent);
+  color: var(--ion-color-danger);
+  font-size: 0.9rem;
+}
+
+/* Lista de linhas sobre o vale (sem cartões): separadores finos entre os itens. */
+.linhas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.linha:active {
+  background: color-mix(in srgb, var(--chasque-faixa) 6%, transparent);
+}
+
+.linha + .linha::before,
+.linhas > li + li .linha::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 78px;
+  right: 20px;
+  border-top: 1px solid var(--chasque-neblina);
+}
+
+.linha__icone {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--chasque-neblina);
+  color: var(--chasque-tinta);
+  font-size: 22px;
+}
+
+.linha__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.linha__titulo {
+  display: block;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--chasque-tinta);
+  line-height: 1.25;
+}
+
+.linha__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.875rem;
+  color: var(--chasque-tinta-suave);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.linha__seta {
+  flex: none;
+  color: var(--chasque-tinta-suave);
+  font-size: 18px;
+}
+
+.secao-titulo {
+  margin: 28px 20px 4px;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--chasque-tinta);
+}
+
+.secao-apoio {
+  margin: 0 20px 8px;
+  font-size: 0.875rem;
+  color: var(--chasque-tinta-suave);
+}
+
+/* conteúdo começa abaixo da borda ondulada do cabeçalho */
+.vale {
+  --padding-top: 30px;
+  --padding-bottom: 48px;
+}

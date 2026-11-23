@@ -1,0 +1,56 @@
+<template>
+  <!--
+    Contorno fino do símbolo do Chasque (marca/simbolo.svg), para os estados vazios.
+    O traço se desenha uma vez quando a tela aparece; quem prefere menos movimento vê o desenho pronto.
+  -->
+  <svg class="simbolo" viewBox="0.0 0.0 1478.6 1111.5" role="img" aria-label="Símbolo do Chasque">
+    <g>
+      <path class="simbolo__base" pathLength="1" d="M1167.385,798.67c-133.623-27.097-228.415-110.066-354.425-159.924-105.596-41.781-216.451-39.271-319.763,8.142-136.589,62.686-245.895,170.44-339.296,289.729C68.583,887.102-26.274,766.17,6.715,674.488c13.324-37.028,43.972-64.708,75.005-87.927,64.949-48.595,136.698-80.954,215.326-102.856,149.149-41.544,302.901-38.273,451.502,5.577,73.6,21.718,139.251,53.812,209.366,83.519l117.651,49.847c147.157,53.755,262.381,29.179,403.058-36.325-14.402,70.267-49.938,127.655-91.222,179.49-69.248,36.195-143.64,45.309-220.016,32.856Z" />
+      <path class="simbolo__base" pathLength="1" d="M1311.197,865.011c-241.385,232.079-595.502,305.951-909.343,197.371-59.392-20.548-112.451-45.368-170.034-75.866,74.822-106.384,171.816-191.65,286.337-246.945,93.834-45.306,195.511-44.496,289.41-4.142,42.082,18.085,79.422,38.723,119.066,61.289,124.345,69.64,241.835,111.835,384.564,68.293Z" />
+      <path class="simbolo__base" pathLength="1" d="M538.154,356.786c-106.352-2.213-204.872,13.632-299.406,56.169-85.986,38.691-160.159,91.723-221.618,164.364,16.056-63.899,47.749-115.716,81.683-170.718C213.079,236.609,378.947,107.138,572.851,40.508c229.382-78.821,481.789-42.102,676.211,105.685-146.906-43.264-287.697,7.104-415.837,78.725l-163.313,92.073c-39.602,22.327-82.606,40.817-131.759,39.794Z" />
+      <path class="simbolo__sol" pathLength="1" d="M1357.932,430.264l-193.842-34.821c-155.049-27.852-308.26-19.501-462.954,8.14l150.209-89.331c58.346-32.942,115.689-59.736,180-79.791,121.451-37.873,251.238-17.934,353.535,57.87,40.221,29.805,68.899,69.378,85.164,115.829,13.223,37.764-55.703,32.236-112.111,22.103Z" />
+    </g>
+  </svg>
+</template>
+
+<style scoped>
+.simbolo {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+path {
+  fill: none;
+  stroke-width: 1.6px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: desenhar 1.8s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+.simbolo__base {
+  stroke: var(--chasque-tinta-suave);
+}
+
+.simbolo__sol {
+  stroke: var(--chasque-ocre);
+  animation-delay: 0.9s;
+  animation-duration: 1.1s;
+}
+
+@keyframes desenhar {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+</style>

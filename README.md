@@ -1,6 +1,7 @@
 # Chasque
 
 App que guarda por que você gostou de cada lugar e usa isso para sugerir o próximo.
+Identidade, missão, visão e valores: [docs/identidade.md](docs/identidade.md).
 Projeto da disciplina GICN 2026B (Univates). Equipe: Jeferson S., Júlio Schneider e Weslley Panzer.
 
 ## Stack
@@ -68,7 +69,47 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET, PATCH | `/api/me/` | Dados da conta. |
 | DELETE | `/api/me/` | Exclui a conta e os registros. Exige `senha`. |
 | GET | `/api/me/exportar/` | Todos os dados da pessoa em JSON. |
+| GET | `/api/lugares/?q=&lat=&lng=` | Busca por nome (sem acento, tolera erro de digitação) e/ou proximidade. Até 20 resultados. |
+| POST | `/api/lugares/` | Cadastra lugar que não está na base (`nome` + `cidade_id` ou `lat`/`lng`). 30 por dia por pessoa. |
+| GET | `/api/cidades/` | Cidades importadas do OSM. |
+| GET, POST | `/api/salvos/` | Lista os salvos (`?pendentes=1` só os sem lugar) ou recebe um compartilhamento (`url`, `text`, `title`). |
+| GET, PATCH, DELETE | `/api/salvos/<id>/` | Ver, vincular a um lugar (`lugar_id`), anotar (`texto`) ou remover. |
 | GET | `/api/healthz` | Saúde da API e do banco. |
+
+## Base de lugares (OpenStreetMap)
+
+```bash
+./scripts/importar-osm.sh
+```
+
+Baixa o arquivo do Sul do Brasil da Geofabrik (cerca de 430 MB, em `dados/`, fora do git) e importa, com o `osmium`:
+
+- **Cidades:** os 497 municípios do RS (`importar_cidades`), com nome, código IBGE e a posição da sede
+  (o membro `admin_centre` da relação do município no OSM). Outra UF: `--ibge 42` para SC, `41` para PR.
+- **Lugares:** todo o RS (`importar_osm --relacao 242620`, recortado pelo contorno do estado no OSM):
+  restaurantes, cafés, mirantes, vinícolas, cachoeiras, museus, hospedagem e outros. Cada lugar recebe a
+  cidade do endereço ou a sede mais próxima. Sem `--relacao`, recorta pela caixa do Vale do Taquari (`--bbox`).
+
+Pode rodar de novo: atualiza pelo id do OSM sem duplicar.
+Os motivos iniciais de cada lugar (ex.: `vista-bonita`, `churrasco`, `aceita-pet`) saem das tags do OSM.
+
+Os dados do OSM são ODbL: a atribuição "© colaboradores do OpenStreetMap" aparece na busca de lugares.
+
+## Salvar lugares do Instagram
+
+1. A pessoa compartilha um post, reel ou perfil do Instagram com o Chasque, ou cola o link no botão + de "Meus lugares".
+2. A API guarda só o link, sem os parâmetros de rastreio (`igsh`, `utm_*`).
+3. O app pergunta "Qual lugar é esse?" e busca na base. Se o lugar não existir, a pessoa cadastra com a cidade
+   ou com a localização atual.
+
+O Chasque não baixa a página do Instagram: os termos de uso dele proíbem coleta automatizada, e o Instagram
+só manda o link no compartilhamento, sem legenda nem localização. A pessoa pode colar a legenda na anotação.
+
+Onde o compartilhamento funciona hoje:
+- **Android (Chrome):** com o Chasque instalado como app pelo menu "Adicionar à tela inicial", ele aparece no
+  menu Compartilhar (Web Share Target). Exige HTTPS em produção.
+- **iPhone e quem não instalou:** copiar o link no Instagram e colar no botão +.
+- **Apps nativos (pendente):** intent filter no Android e Share Extension no iOS, quando os projetos do Capacitor forem criados.
 
 ## Decisões de segurança
 
@@ -90,14 +131,16 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 - **Armazenamento seguro no app nativo.** `app/src/services/cofre.ts` hoje guarda o refresh só em memória.
   Antes do primeiro build Android/iOS, trocar por um plugin de Keychain/Keystore (nunca `Preferences` nem `localStorage`).
 - **Exportar dados no app nativo** precisa do plugin de arquivos/compartilhar. Na web já baixa o JSON.
+- **Compartilhar no app nativo:** falta o intent filter do Android e a Share Extension do iOS.
+- **Lugares cadastrados por usuários** entram na base comum sem moderação (só limite de 30 por dia). Revisar pelo admin.
+- **Busca:** sem índice de texto por enquanto; com a base regional (alguns milhares de lugares) não faz falta.
+  Para escalar, criar um índice trigram sobre `unaccent(nome)` com uma função imutável.
 - **Produção:** trocar `runserver` por gunicorn atrás do nginx com HTTPS, `DJANGO_DEBUG=0`, `DRF_NUM_PROXIES=1`,
   cache compartilhado (Redis) para os limites de tentativa valerem entre processos, e servir `app/dist` como estático.
 - **Tamanho do app:** o pacote do Ionic gera um arquivo JS de 1,1 MB (236 KB comprimido). Revisar quando houver telas reais.
-- **Identidade visual:** as cores do tema (`app/src/theme/variables.css`) são provisórias.
 
 ## Próximas etapas
 
-1. Importar o recorte do OSM do Vale do Taquari (Geofabrik, filtro `amenity`, `tourism`, `shop`) com mapeamento de categoria para tags.
-2. Registro de visita em até 3 toques e lista pessoal com busca por motivo.
-3. Onboarding de gostos (`PreferenciaDeclarada`) e primeira sugestão por tags, ocasião e distância.
-4. Mapa com MapLibre e tiles PMTiles próprios, e build PWA.
+1. Registro de visita em até 3 toques e lista pessoal com busca por motivo.
+2. Onboarding de gostos (`PreferenciaDeclarada`) e primeira sugestão por tags, ocasião e distância.
+3. Mapa com MapLibre e tiles PMTiles próprios.

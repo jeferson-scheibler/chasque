@@ -5,9 +5,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# GDAL/GEOS/PROJ sao exigidos pelo GeoDjango.
+# GDAL/GEOS/PROJ sao exigidos pelo GeoDjango; osmium-tool recorta o arquivo do OpenStreetMap.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gdal-bin \
+    && apt-get install -y --no-install-recommends gdal-bin osmium-tool \
     && rm -rf /var/lib/apt/lists/*
 
 ARG APP_UID=1000

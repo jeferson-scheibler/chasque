@@ -1,42 +1,58 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar><ion-title>Conta</ion-title></ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <div class="formulario" v-if="sessao.usuario">
-        <ion-list lines="full">
-          <ion-item>
-            <ion-input v-model="nome" label="Nome" label-placement="stacked" />
-          </ion-item>
-          <ion-item>
-            <ion-input :value="sessao.usuario.email" label="E-mail" label-placement="stacked" readonly />
-          </ion-item>
-          <ion-item>
-            <ion-input v-model="cidade" label="Cidade base" label-placement="stacked" placeholder="Ex.: Lajeado" />
-          </ion-item>
-        </ion-list>
-        <ion-button expand="block" class="ion-margin-top" :disabled="!alterado || salvando" @click="salvar">
-          Salvar
-        </ion-button>
+    <faixa :titulo="sessao.usuario?.nome ?? 'Conta'" :subtitulo="sessao.usuario?.email" :arvores="false">
+      <template #acoes>
+        <span slot="end" class="iniciais" aria-hidden="true">{{ iniciais }}</span>
+      </template>
+    </faixa>
 
-        <h2 class="secao">Seus dados</h2>
-        <p class="texto-apoio">Seus registros são privados. Você pode baixar tudo que o Chasque guarda sobre você ou apagar a conta.</p>
-        <ion-button expand="block" fill="outline" @click="exportar">Baixar meus dados</ion-button>
-        <ion-button expand="block" fill="outline" @click="sair">Sair</ion-button>
-        <ion-button expand="block" fill="clear" color="danger" @click="confirmarExclusao">Excluir conta</ion-button>
-      </div>
+    <ion-content class="vale">
+      <form v-if="sessao.usuario" class="bloco" novalidate @submit.prevent="salvar">
+        <h2 class="secao-titulo">Seu perfil</h2>
+        <campo v-model="nome" rotulo="Nome" autocomplete="name" />
+        <campo v-model="cidade" rotulo="Cidade onde você mora" placeholder="Lajeado" autocomplete="address-level2" />
+        <button v-if="alterado" type="submit" class="botao botao--noite" :disabled="salvando">
+          {{ salvando ? 'Salvando...' : 'Salvar perfil' }}
+        </button>
+      </form>
+
+      <h2 class="secao-titulo">Seus dados</h2>
+      <p class="secao-apoio">Seus registros são privados. Você pode levar tudo com você ou apagar a conta.</p>
+      <ul class="linhas">
+        <li>
+          <button type="button" class="linha" @click="exportar">
+            <span class="linha__icone"><ion-icon :icon="downloadOutline" aria-hidden="true" /></span>
+            <span class="linha__texto">
+              <span class="linha__titulo">Baixar meus dados</span>
+              <span class="linha__meta">Um arquivo com tudo o que o Chasque guarda sobre você</span>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="linha" @click="sair">
+            <span class="linha__icone"><ion-icon :icon="logOutOutline" aria-hidden="true" /></span>
+            <span class="linha__texto">
+              <span class="linha__titulo">Sair</span>
+              <span class="linha__meta">Encerra a sessão neste aparelho</span>
+            </span>
+          </button>
+        </li>
+      </ul>
+
+      <button type="button" class="botao botao--perigo excluir" @click="confirmarExclusao">
+        <ion-icon :icon="trashOutline" aria-hidden="true" />Excluir conta
+      </button>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import {
-  alertController, IonButton, IonContent, IonHeader, IonInput, IonItem, IonList, IonPage, IonTitle,
-  IonToolbar, toastController,
-} from '@ionic/vue'
+import { alertController, IonContent, IonIcon, IonPage, toastController } from '@ionic/vue'
+import { downloadOutline, logOutOutline, trashOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Campo from '@/components/Campo.vue'
+import Faixa from '@/components/Faixa.vue'
 import { api, ErroApi } from '@/services/api'
 import { useSessao } from '@/stores/sessao'
 
@@ -47,9 +63,17 @@ const nome = ref(sessao.usuario?.nome ?? '')
 const cidade = ref(sessao.usuario?.cidade_base ?? '')
 const salvando = ref(false)
 const alterado = computed(() => nome.value !== sessao.usuario?.nome || cidade.value !== sessao.usuario?.cidade_base)
+const iniciais = computed(() =>
+  (sessao.usuario?.nome ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join(''),
+)
 
-async function avisar(mensagem: string, cor = 'dark') {
-  const toast = await toastController.create({ message: mensagem, duration: 2500, color: cor })
+async function avisar(mensagem: string, cor?: string) {
+  const toast = await toastController.create({ message: mensagem, duration: 2400, color: cor, position: 'top' })
   await toast.present()
 }
 
@@ -57,7 +81,7 @@ async function salvar() {
   salvando.value = true
   try {
     await sessao.atualizar({ nome: nome.value, cidade_base: cidade.value })
-    await avisar('Dados salvos.')
+    await avisar('Perfil salvo')
   } catch (e) {
     await avisar(e instanceof ErroApi ? e.message : 'Não foi possível salvar.', 'danger')
   } finally {
@@ -76,7 +100,7 @@ async function exportar() {
     link.click()
     URL.revokeObjectURL(link.href)
   } catch {
-    await avisar('Não foi possível exportar agora.', 'danger')
+    await avisar('Não foi possível baixar agora.', 'danger')
   }
 }
 
@@ -88,7 +112,7 @@ async function sair() {
 async function confirmarExclusao() {
   const alerta = await alertController.create({
     header: 'Excluir conta',
-    message: 'Isso apaga a conta e todos os seus registros. Não dá para desfazer. Digite sua senha para confirmar.',
+    message: 'Isso apaga a conta e tudo o que você salvou. Não dá para desfazer. Digite sua senha para confirmar.',
     inputs: [{ name: 'senha', type: 'password', placeholder: 'Senha', attributes: { autocomplete: 'current-password' } }],
     buttons: [
       { text: 'Cancelar', role: 'cancel' },
@@ -102,7 +126,7 @@ async function excluir(senha: string) {
   try {
     await sessao.excluirConta(senha)
     await router.replace('/entrar')
-    await avisar('Conta excluída.')
+    await avisar('Conta excluída')
   } catch (e) {
     await avisar(e instanceof ErroApi ? e.message : 'Não foi possível excluir.', 'danger')
   }
@@ -110,8 +134,33 @@ async function excluir(senha: string) {
 </script>
 
 <style scoped>
-.secao {
-  margin-top: 2rem;
-  font-size: 1.1rem;
+.iniciais {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--chasque-ocre);
+  color: var(--chasque-sobre-ocre);
+  font-family: var(--chasque-fonte-titulo);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.bloco {
+  padding: 0 20px;
+}
+
+.bloco .secao-titulo {
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 14px;
+}
+
+.excluir {
+  margin: 28px auto 0;
+  width: auto;
+  padding: 0 18px;
 }
 </style>

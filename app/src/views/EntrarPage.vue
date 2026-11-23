@@ -1,36 +1,28 @@
 <template>
-  <ion-page>
-    <ion-content class="ion-padding">
-      <form class="formulario" @submit.prevent="enviar">
-        <h1 class="marca">Chasque</h1>
-        <p class="texto-apoio">Guarde por que gostou de cada lugar.</p>
+  <cena-entrada>
+    <form novalidate @submit.prevent="enviar">
+      <h1 class="titulo-pagina">Entrar</h1>
+      <campo v-model="email" rotulo="E-mail" type="email" autocomplete="email" inputmode="email" placeholder="voce@exemplo.com" />
+      <campo v-model="senha" rotulo="Senha" type="password" autocomplete="current-password" />
 
-        <ion-list lines="full">
-          <ion-item>
-            <ion-input v-model="email" label="E-mail" label-placement="stacked" type="email" autocomplete="email" inputmode="email" required />
-          </ion-item>
-          <ion-item>
-            <ion-input v-model="senha" label="Senha" label-placement="stacked" type="password" autocomplete="current-password" required>
-              <ion-input-password-toggle slot="end" />
-            </ion-input>
-          </ion-item>
-        </ion-list>
+      <p v-if="erro" class="mensagem-erro" role="alert">{{ erro }}</p>
 
-        <ion-text v-if="erro" color="danger"><p role="alert">{{ erro }}</p></ion-text>
-
-        <ion-button expand="block" type="submit" class="ion-margin-top" :disabled="enviando">
-          {{ enviando ? 'Entrando...' : 'Entrar' }}
-        </ion-button>
-        <ion-button expand="block" fill="clear" router-link="/cadastro">Criar conta</ion-button>
-      </form>
-    </ion-content>
-  </ion-page>
+      <button class="botao botao--noite" type="submit" :disabled="enviando">
+        {{ enviando ? 'Entrando...' : 'Entrar' }}
+      </button>
+      <p class="alternativa">
+        Ainda não tem conta?
+        <router-link to="/cadastro">Criar conta</router-link>
+      </p>
+    </form>
+  </cena-entrada>
 </template>
 
 <script setup lang="ts">
-import { IonButton, IonContent, IonInput, IonInputPasswordToggle, IonItem, IonList, IonPage, IonText } from '@ionic/vue'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Campo from '@/components/Campo.vue'
+import CenaEntrada from '@/components/CenaEntrada.vue'
 import { ErroApi } from '@/services/api'
 import { useSessao } from '@/stores/sessao'
 
@@ -45,11 +37,16 @@ const enviando = ref(false)
 
 async function enviar() {
   erro.value = ''
+  if (!email.value.trim() || !senha.value) {
+    erro.value = 'Preencha o e-mail e a senha.'
+    return
+  }
   enviando.value = true
   try {
     await sessao.entrar(email.value, senha.value)
-    const volta = typeof route.query.volta === 'string' && route.query.volta.startsWith('/') && !route.query.volta.startsWith('//') ? route.query.volta : '/abas/sugestoes'
-    await router.replace(volta)
+    const volta = route.query.volta
+    const destino = typeof volta === 'string' && volta.startsWith('/') && !volta.startsWith('//') ? volta : '/abas/lugares'
+    await router.replace(destino)
   } catch (e) {
     erro.value = e instanceof ErroApi && e.status === 429
       ? 'Muitas tentativas. Espere um minuto e tente de novo.'
@@ -59,3 +56,26 @@ async function enviar() {
   }
 }
 </script>
+
+<style scoped>
+.titulo-pagina {
+  margin: 0 0 18px;
+  font-size: 1.6rem;
+  font-weight: 650;
+  color: var(--chasque-tinta);
+}
+
+.alternativa {
+  margin: 18px 0 0;
+  text-align: center;
+  color: var(--chasque-tinta-suave);
+}
+
+.alternativa a {
+  color: var(--chasque-tinta);
+  font-weight: 650;
+  text-decoration-color: var(--chasque-ocre);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+</style>

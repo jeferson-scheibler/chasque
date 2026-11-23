@@ -23,12 +23,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.gis",
+    "django.contrib.postgres",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "contas",
     "lugares",
     "registros",
+    "salvos",
 ]
 
 MIDDLEWARE = [
@@ -121,7 +123,9 @@ REST_FRAMEWORK = {
         "anon": "60/min",
         "user": "300/min",
         "login": "10/min",
+        "renovar": "120/min",
         "cadastro": "5/hour",
+        "criar_lugar": "30/day",
     },
     # Atras do nginx em producao, defina DRF_NUM_PROXIES=1 para o limite contar o IP real.
     "NUM_PROXIES": int(os.environ["DRF_NUM_PROXIES"]) if os.environ.get("DRF_NUM_PROXIES") else None,

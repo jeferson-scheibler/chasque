@@ -1,44 +1,215 @@
-/* Cores provisorias do Chasque: verde de campo e terracota. Trocar quando houver identidade visual. */
+/*
+ * Identidade do Chasque: o app é a paisagem do logo.
+ * Cabeçalho e barra de abas são as faixas Noite (os morros); o conteúdo é o vale claro entre elas.
+ * As barras do sistema (status e navegação) usam a mesma cor da faixa: ver theme-color no index.html.
+ * Referência: docs/identidade.md
+ */
 :root {
-  --ion-color-primary: #2f6b4f;
-  --ion-color-primary-rgb: 47, 107, 79;
-  --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #295e46;
-  --ion-color-primary-tint: #447a61;
+  --chasque-faixa: #1f2b4d;
+  --chasque-faixa-texto: #faf6ee;
+  --chasque-faixa-suave: rgba(250, 246, 238, 0.66);
+  --chasque-faixa-vidro: rgba(250, 246, 238, 0.12);
+  --chasque-fundo: #faf6ee;
+  --chasque-papel: #fffdf8;
+  --chasque-neblina: #ebe4d5;
+  --chasque-tinta: #1c2233;
+  --chasque-tinta-suave: #5d6374;
+  --chasque-ocre: #d99a2b;
+  --chasque-ocre-brilho: rgba(217, 154, 43, 0.45);
+  --chasque-sobre-ocre: #1f2b4d;
+  --chasque-campo: #4f7a4a;
+  /* morros da cena do login, do mais longe ao mais perto */
+  --colina-longe: #34426c;
+  --colina-meio: #d6cbb5;
+  --colina-perto: #faf6ee;
 
-  --ion-color-secondary: #c8643b;
-  --ion-color-secondary-rgb: 200, 100, 59;
-  --ion-color-secondary-contrast: #ffffff;
-  --ion-color-secondary-contrast-rgb: 255, 255, 255;
-  --ion-color-secondary-shade: #b05834;
-  --ion-color-secondary-tint: #ce744f;
+  --chasque-fonte-titulo: 'Bricolage Grotesque Variable', 'Figtree Variable', system-ui, sans-serif;
+  --ion-font-family: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --ion-color-primary: #1f2b4d;
+  --ion-color-primary-rgb: 31, 43, 77;
+  --ion-color-primary-contrast: #faf6ee;
+  --ion-color-primary-contrast-rgb: 250, 246, 238;
+  --ion-color-primary-shade: #1b2644;
+  --ion-color-primary-tint: #354062;
+
+  /* Ocre pede texto Noite: branco sobre ele não passa no contraste. */
+  --ion-color-secondary: #d99a2b;
+  --ion-color-secondary-rgb: 217, 154, 43;
+  --ion-color-secondary-contrast: #1f2b4d;
+  --ion-color-secondary-contrast-rgb: 31, 43, 77;
+  --ion-color-secondary-shade: #bf8826;
+  --ion-color-secondary-tint: #dda440;
+
+  --ion-color-tertiary: #4f7a4a;
+  --ion-color-tertiary-rgb: 79, 122, 74;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #466b41;
+  --ion-color-tertiary-tint: #61875c;
+
+  --ion-color-success: #4f7a4a;
+  --ion-color-success-rgb: 79, 122, 74;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #466b41;
+  --ion-color-success-tint: #61875c;
+
+  --ion-color-danger: #b4432f;
+  --ion-color-danger-rgb: 180, 67, 47;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #9e3b29;
+  --ion-color-danger-tint: #bc5644;
+
+  --ion-color-medium: #5d6374;
+  --ion-color-medium-rgb: 93, 99, 116;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #525766;
+  --ion-color-medium-tint: #6d7382;
+
+  --ion-background-color: #faf6ee;
+  --ion-background-color-rgb: 250, 246, 238;
+  --ion-text-color: #1c2233;
+  --ion-text-color-rgb: 28, 34, 51;
+  --ion-border-color: #e2dac8;
+  --ion-placeholder-color: #8b8c90;
+  --ion-item-background: transparent;
+  --ion-toolbar-background: var(--chasque-faixa);
+  --ion-toolbar-color: var(--chasque-faixa-texto);
+  --ion-toolbar-border-color: transparent;
+  --ion-tab-bar-background: var(--chasque-faixa);
+  --ion-tab-bar-color: var(--chasque-faixa-suave);
+  --ion-tab-bar-color-selected: var(--chasque-ocre);
+  --ion-tab-bar-border-color: transparent;
+  --ion-overlay-background-color: #fffdf8;
+
+  --ion-background-color-step-50: #efebe5; --ion-background-color-step-100: #e4e1db; --ion-background-color-step-150: #d9d6d2; --ion-background-color-step-200: #ceccc9; --ion-background-color-step-250: #c2c1bf; --ion-background-color-step-300: #b7b6b6; --ion-background-color-step-350: #acacad; --ion-background-color-step-400: #a1a1a3; --ion-background-color-step-450: #96979a; --ion-background-color-step-500: #8b8c90; --ion-background-color-step-550: #808187; --ion-background-color-step-600: #75777e; --ion-background-color-step-650: #6a6c74; --ion-background-color-step-700: #5f626b; --ion-background-color-step-750: #545762; --ion-background-color-step-800: #484c58; --ion-background-color-step-850: #3d424f; --ion-background-color-step-900: #323746; --ion-background-color-step-950: #272d3c;
+  --ion-text-color-step-50: #272d3c; --ion-text-color-step-100: #323746; --ion-text-color-step-150: #3d424f; --ion-text-color-step-200: #484c58; --ion-text-color-step-250: #545762; --ion-text-color-step-300: #5f626b; --ion-text-color-step-350: #6a6c74; --ion-text-color-step-400: #75777e; --ion-text-color-step-450: #808187; --ion-text-color-step-500: #8b8c90; --ion-text-color-step-550: #96979a; --ion-text-color-step-600: #a1a1a3; --ion-text-color-step-650: #acacad; --ion-text-color-step-700: #b7b6b6; --ion-text-color-step-750: #c2c1bf; --ion-text-color-step-800: #ceccc9; --ion-text-color-step-850: #d9d6d2; --ion-text-color-step-900: #e4e1db; --ion-text-color-step-950: #efebe5;
 }
 
+/* Noite no Vale: mesma paisagem, com o vale escuro e as faixas um tom acima. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ion-color-primary: #6fb391;
-    --ion-color-primary-rgb: 111, 179, 145;
-    --ion-color-primary-contrast: #0d1f16;
-    --ion-color-primary-contrast-rgb: 13, 31, 22;
-    --ion-color-primary-shade: #629e80;
-    --ion-color-primary-tint: #7dbb9c;
+    --chasque-faixa: #1f2b4d;
+    --chasque-fundo: #0f1524;
+    --chasque-papel: #161e33;
+    --chasque-neblina: #222b45;
+    --chasque-tinta: #f1ece2;
+    --chasque-tinta-suave: #9ba1b4;
+    --chasque-ocre: #e3ae4e;
+    --chasque-ocre-brilho: rgba(227, 174, 78, 0.4);
+    --chasque-sobre-ocre: #141b2e;
+    --colina-longe: #26315a;
+    --colina-meio: #1c2542;
+    --colina-perto: #0f1524;
+
+    --ion-color-primary: #a9b7e0;
+    --ion-color-primary-rgb: 169, 183, 224;
+    --ion-color-primary-contrast: #0f1524;
+    --ion-color-primary-contrast-rgb: 15, 21, 36;
+    --ion-color-primary-shade: #95a1c5;
+    --ion-color-primary-tint: #b2bee3;
+
+    --ion-color-secondary: #e3ae4e;
+    --ion-color-secondary-rgb: 227, 174, 78;
+    --ion-color-secondary-contrast: #141b2e;
+    --ion-color-secondary-contrast-rgb: 20, 27, 46;
+    --ion-color-secondary-shade: #c89945;
+    --ion-color-secondary-tint: #e6b660;
+
+    --ion-color-tertiary: #86b07f;
+    --ion-color-tertiary-rgb: 134, 176, 127;
+    --ion-color-tertiary-contrast: #0f1524;
+    --ion-color-tertiary-contrast-rgb: 15, 21, 36;
+    --ion-color-tertiary-shade: #769b70;
+    --ion-color-tertiary-tint: #92b88c;
+
+    --ion-color-success: #86b07f;
+    --ion-color-success-rgb: 134, 176, 127;
+    --ion-color-success-contrast: #0f1524;
+    --ion-color-success-contrast-rgb: 15, 21, 36;
+    --ion-color-success-shade: #769b70;
+    --ion-color-success-tint: #92b88c;
+
+    --ion-color-danger: #e8836f;
+    --ion-color-danger-rgb: 232, 131, 111;
+    --ion-color-danger-contrast: #0f1524;
+    --ion-color-danger-contrast-rgb: 15, 21, 36;
+    --ion-color-danger-shade: #cc7362;
+    --ion-color-danger-tint: #ea8f7d;
+
+    --ion-color-medium: #9ba1b4;
+    --ion-color-medium-rgb: 155, 161, 180;
+    --ion-color-medium-contrast: #0f1524;
+    --ion-color-medium-contrast-rgb: 15, 21, 36;
+    --ion-color-medium-shade: #888e9e;
+    --ion-color-medium-tint: #a5aabc;
+
+    --ion-background-color: #0f1524;
+    --ion-background-color-rgb: 15, 21, 36;
+    --ion-text-color: #f1ece2;
+    --ion-text-color-rgb: 241, 236, 226;
+    --ion-border-color: #27304b;
+    --ion-placeholder-color: #75767a;
+    --ion-overlay-background-color: #161e33;
+
+    --ion-background-color-step-50: #1a202e; --ion-background-color-step-100: #262a37; --ion-background-color-step-150: #313540; --ion-background-color-step-200: #3c404a; --ion-background-color-step-250: #484b54; --ion-background-color-step-300: #53565d; --ion-background-color-step-350: #5e6066; --ion-background-color-step-400: #696b70; --ion-background-color-step-450: #75767a; --ion-background-color-step-500: #808083; --ion-background-color-step-550: #8b8b8c; --ion-background-color-step-600: #979696; --ion-background-color-step-650: #a2a1a0; --ion-background-color-step-700: #adaca9; --ion-background-color-step-750: #b8b6b2; --ion-background-color-step-800: #c4c1bc; --ion-background-color-step-850: #cfccc6; --ion-background-color-step-900: #dad6cf; --ion-background-color-step-950: #e6e1d8;
+    --ion-text-color-step-50: #e6e1d8; --ion-text-color-step-100: #dad6cf; --ion-text-color-step-150: #cfccc6; --ion-text-color-step-200: #c4c1bc; --ion-text-color-step-250: #b8b6b2; --ion-text-color-step-300: #adaca9; --ion-text-color-step-350: #a2a1a0; --ion-text-color-step-400: #979696; --ion-text-color-step-450: #8b8b8c; --ion-text-color-step-500: #808083; --ion-text-color-step-550: #757679; --ion-text-color-step-600: #696b70; --ion-text-color-step-650: #5e6066; --ion-text-color-step-700: #53565d; --ion-text-color-step-750: #484b54; --ion-text-color-step-800: #3c404a; --ion-text-color-step-850: #313540; --ion-text-color-step-900: #262a37; --ion-text-color-step-950: #1a202e;
   }
 }
 
-.formulario {
-  max-width: 420px;
-  margin: 0 auto;
+body {
+  background: var(--chasque-fundo);
 }
 
-.marca {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--ion-color-primary);
-  margin: 2rem 0 0.25rem;
+h1,
+h2,
+h3,
+.titulo {
+  font-family: var(--chasque-fonte-titulo);
+  letter-spacing: -0.015em;
 }
 
 .texto-apoio {
-  color: var(--ion-color-medium);
+  color: var(--chasque-tinta-suave);
   margin-top: 0;
+}
+
+/* As faixas não têm sombra: a borda ondulada já separa do vale. */
+ion-header.faixa,
+ion-header.faixa::after {
+  box-shadow: none;
+  background-image: none;
+}
+
+ion-content {
+  --background: var(--chasque-fundo);
+}
+
+ion-toast {
+  --background: var(--chasque-faixa);
+  --color: var(--chasque-faixa-texto);
+  --border-radius: 14px;
+  font-family: var(--ion-font-family);
+}
+
+ion-alert {
+  --background: var(--chasque-papel);
+}
+
+:focus-visible {
+  outline: 2px solid var(--chasque-ocre);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

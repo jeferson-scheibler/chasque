@@ -12,9 +12,16 @@ import '@ionic/vue/css/padding.css'
 import '@ionic/vue/css/flex-utils.css'
 import '@ionic/vue/css/text-alignment.css'
 import '@ionic/vue/css/display.css'
-import '@ionic/vue/css/palettes/dark.system.css'
+import '@fontsource-variable/bricolage-grotesque'
+import '@fontsource-variable/figtree'
 import './theme/variables.css'
+import './theme/botoes.css'
 
 const app = createApp(App).use(IonicVue).use(createPinia()).use(router)
 
 router.isReady().then(() => app.mount('#app'))
+
+// O service worker torna o app instalável (PWA), o que habilita o menu Compartilhar no Android.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  void navigator.serviceWorker.register('/sw.js')
+}

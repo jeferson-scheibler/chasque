@@ -50,12 +50,15 @@ class EntrarView(APIView):
 
 
 class RenovarView(APIView):
-    """Troca um refresh valido por um access novo. O refresh e rotacionado a cada uso."""
+    """Troca um refresh valido por um access novo. O refresh e rotacionado a cada uso.
+
+    Limite próprio, mais folgado que o do login: o app renova a sessão sempre que abre, e várias
+    pessoas na mesma rede (Wi-Fi da universidade) dividem o mesmo IP."""
 
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "login"
+    throttle_scope = "renovar"
 
     def post(self, request):
         token, veio_do_cookie = tokens.ler_refresh(request)
@@ -121,6 +124,7 @@ class ExportarView(APIView):
 
     def get(self, request):
         from registros.models import PesoGosto, Registro
+        from salvos.models import Salvo
 
         usuario = request.user
         registros = (
@@ -152,6 +156,16 @@ class ExportarView(APIView):
                     "privado": r.privado,
                 }
                 for r in registros
+            ],
+            "salvos": [
+                {
+                    "url": s.url,
+                    "tipo": s.tipo,
+                    "texto": s.texto,
+                    "lugar": s.lugar.nome if s.lugar else None,
+                    "criado_em": s.criado_em,
+                }
+                for s in Salvo.objects.filter(usuario=usuario).select_related("lugar")
             ],
             "perfil_de_gosto": [
                 {"tag": p.tag.slug, "ocasiao": p.ocasiao, "peso": p.peso}
