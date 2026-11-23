@@ -191,6 +191,53 @@ class SugestoesTests(Base):
         self.assertNotIn("Bar do Centro", nomes)  # animado pesou contra
         self.assertNotIn("Loja Qualquer", nomes)  # nenhum motivo em comum
 
+    def quando(self, **params):
+        self.client.put("/api/me/preferencias/", {"tags": ["animado"]}, format="json")
+        return self.sugerir(**params)
+
+    def test_lugar_fechado_no_dia_sai_e_o_aberto_mostra_o_horario(self):
+        self.bar_perto.horario = "Tu-Su 18:00-23:00"  # fecha às segundas
+        self.bar_perto.save()
+        aberto = self.lugar("Bar Aberto", -51.9625, -29.4672, ["animado"])
+        aberto.horario = "Mo-Su 11:00-23:00"
+        aberto.save()
+        r = self.quando(quando="2026-11-30")  # segunda-feira
+        self.assertEqual(self.nomes(r), ["Bar Aberto"])
+        self.assertEqual(r.data["resultados"][0]["horario"], {"estado": "aberto", "texto": "11:00 às 23:00"})
+        self.assertIn("Bar do Centro", self.nomes(self.quando(quando="2026-12-01")))  # terça ele abre
+
+    def test_hora_filtra_dentro_do_dia(self):
+        self.bar_perto.horario = "Mo-Su 18:00-23:00"
+        self.bar_perto.save()
+        self.assertEqual(self.nomes(self.quando(quando="2026-11-30", hora="20:00")), ["Bar do Centro"])
+        self.assertEqual(self.nomes(self.quando(quando="2026-11-30", hora="10:00")), [])
+
+    def test_sem_horario_fica_na_lista_avisando_e_visita_no_mesmo_dia_da_semana_vira_prova(self):
+        import datetime
+
+        r = self.quando(quando="2026-11-30")
+        self.assertEqual(self.nomes(r), ["Bar do Centro"])
+        self.assertEqual(r.data["resultados"][0]["horario"], {"estado": "sem_info", "texto": ""})
+        # a Bia foi ao bar numa segunda (23/11/2026): abre às segundas
+        Registro.objects.create(usuario=self.bia, lugar=self.bar_perto, nota=4, ocasiao="amigos",
+                                visitado_em=datetime.date(2026, 11, 23))
+        horario = self.quando(quando="2026-11-30").data["resultados"][0]["horario"]
+        self.assertEqual(horario, {"estado": "visto", "texto": "", "visitas": 1})
+        # numa quarta não há prova
+        self.assertEqual(self.quando(quando="2026-12-02").data["resultados"][0]["horario"]["estado"], "sem_info")
+
+    def test_confirmado_vem_antes_de_sem_horario_de_igual_gosto(self):
+        confirmado = self.lugar("Bar Confirmado", -51.9621, -29.4668, ["animado", "musica-ao-vivo"])
+        confirmado.horario = "Mo-Su 11:00-23:00"
+        confirmado.save()
+        r = self.quando(quando="2026-11-30")
+        self.assertEqual(self.nomes(r)[0], "Bar Confirmado")
+
+    def test_sem_quando_nao_traz_horario_e_data_ruim_da_erro(self):
+        self.assertIsNone(self.quando().data["resultados"][0]["horario"])
+        self.assertEqual(self.sugerir(quando="amanhã").status_code, 400)
+        self.assertEqual(self.sugerir(hora="20:00").status_code, 400)  # hora sozinha, sem data
+
     def test_preferencias_declaradas_dao_sugestao_antes_da_primeira_visita(self):
         r = self.client.put("/api/me/preferencias/", {"tags": ["musica-ao-vivo"]}, format="json")
         self.assertEqual(r.data, {"tags": ["musica-ao-vivo"]})

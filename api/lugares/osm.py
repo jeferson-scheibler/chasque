@@ -336,6 +336,8 @@ def importar(features, progresso=None):
                 "categoria": categoria,
                 "endereco": endereco(tags)[:300],
                 "cidade": (tags.get("addr:city") or (proxima.nome if proxima else ""))[:120],
+                "horario": (tags.get("opening_hours") or "").strip()[:300],
+                "telefone": (tags.get("phone") or tags.get("contact:phone") or "").split(";")[0].strip()[:60],
                 "aproximado": False,
             },
         )

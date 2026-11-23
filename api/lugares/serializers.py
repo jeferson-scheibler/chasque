@@ -39,7 +39,7 @@ class LugarSerializer(serializers.ModelSerializer):
         model = Lugar
         fields = [
             "id", "nome", "endereco", "cidade", "categoria", "categoria_nome",
-            "lat", "lng", "aproximado", "fonte", "tags", "motivos_comunidade", "distancia_m",
+            "lat", "lng", "aproximado", "fonte", "tags", "motivos_comunidade", "distancia_m", "telefone",
         ]
 
     def get_motivos_comunidade(self, lugar):

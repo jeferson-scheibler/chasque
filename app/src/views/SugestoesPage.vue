@@ -9,17 +9,44 @@
 
       <!-- Onde e com quem -->
       <div v-if="temGosto" class="filtros">
+        <div class="pilulas">
         <button type="button" class="onde" @click="mostrarOnde = !mostrarOnde">
           <ion-icon :icon="origem?.tipo === 'localizacao' ? navigateOutline : locationOutline" aria-hidden="true" />
           <span>{{ origem ? origem.nome : 'Escolher onde' }}</span>
           <ion-icon :icon="mostrarOnde ? chevronUp : chevronDown" aria-hidden="true" class="onde__seta" />
         </button>
+        <button type="button" class="onde quando" :class="{ 'quando--ativo': quando }" @click="mostrarQuando = !mostrarQuando">
+          <ion-icon :icon="calendarOutline" aria-hidden="true" />
+          <span>{{ rotuloQuando }}</span>
+          <ion-icon :icon="mostrarQuando ? chevronUp : chevronDown" aria-hidden="true" class="onde__seta" />
+        </button>
+        </div>
         <div v-if="mostrarOnde" class="onde__painel">
           <button type="button" class="botao botao--leve" :disabled="localizando" @click="usarLocalizacao">
             <ion-icon :icon="navigateOutline" aria-hidden="true" />
             {{ localizando ? 'Localizando...' : 'Usar minha localização' }}
           </button>
           <escolher-cidade v-model="cidadeId" :cidades="cidades" />
+        </div>
+        <div v-if="mostrarQuando" class="onde__painel quando__painel">
+          <div class="quando__rapido" role="radiogroup" aria-label="Dia">
+            <button v-for="d in DIAS_RAPIDOS" :key="d.rotulo" type="button" role="radio"
+                    :aria-checked="quando === d.valor()" :class="{ ativa: quando === d.valor() }" @click="escolherDia(d.valor())">
+              {{ d.rotulo }}
+            </button>
+          </div>
+          <label class="quando__campo">
+            <span>Outro dia</span>
+            <input v-model="quando" type="date" :min="hoje()" aria-label="Dia da visita" />
+          </label>
+          <label v-if="quando" class="quando__campo">
+            <span>Horário (opcional)</span>
+            <input v-model="hora" type="time" aria-label="Horário da visita" />
+          </label>
+          <p class="quando__apoio">
+            Lugares que o mapa mostra fechados nesse dia saem da lista. Os sem horário continuam, com aviso.
+          </p>
+          <button v-if="quando" type="button" class="botao botao--texto quando__limpar" @click="limparQuando">Qualquer dia</button>
         </div>
         <div class="ocasioes" role="radiogroup" aria-label="Com quem você vai">
           <button
@@ -72,9 +99,13 @@
       <vazio
         v-else-if="!resultados.length"
         pose="duvida"
-        titulo="Nada por perto combina ainda"
-        texto="Tente outra cidade ou outra ocasião. Cada visita que você registra ajuda o Chasque a achar mais lugares."
-      />
+        :titulo="quando ? 'Nada aberto nesse dia por perto' : 'Nada por perto combina ainda'"
+        :texto="quando
+          ? 'Os lugares com horário no mapa estão fechados nesse dia. Tente outro dia, outra cidade ou tire o horário.'
+          : 'Tente outra cidade ou outra ocasião. Cada visita que você registra ajuda o Chasque a achar mais lugares.'"
+      >
+        <button v-if="quando" type="button" class="botao botao--leve botao--compacto" @click="limparQuando">Ver qualquer dia</button>
+      </vazio>
 
       <template v-else>
         <!-- A melhor combinação: o único destaque da tela -->
@@ -82,6 +113,9 @@
           <p class="destaque__rotulo">A que mais combina com você</p>
           <h2>{{ primeira.lugar.nome }}</h2>
           <p class="destaque__meta">{{ metaDo(primeira) }}</p>
+          <p v-if="avisoHorario(primeira)" class="horario" :class="`horario--${primeira.horario?.estado}`">
+            <ion-icon :icon="timeOutline" aria-hidden="true" />{{ avisoHorario(primeira) }}
+          </p>
           <p class="destaque__combina">
             <span v-for="slug in primeira.combina" :key="slug">
               {{ motivos.nome(slug) }}
@@ -94,6 +128,9 @@
           <div class="destaque__acoes">
             <a class="botao botao--sol botao--compacto" :href="rota(primeira)" target="_blank" rel="noopener noreferrer">
               <ion-icon :icon="navigateOutline" aria-hidden="true" />Como chegar
+            </a>
+            <a v-if="primeira.lugar.telefone && primeira.horario?.estado !== 'aberto'" class="destaque__fui" :href="`tel:${primeira.lugar.telefone}`">
+              Ligar
             </a>
             <router-link class="destaque__fui" :to="{ path: '/abas/lugares/visita/nova', query: { lugar: primeira.lugar.id } }">
               Já fui
@@ -109,6 +146,9 @@
               <span class="linha__texto">
                 <span class="linha__titulo">{{ s.lugar.nome }}</span>
                 <span class="linha__meta">{{ metaDo(s) }}</span>
+                <span v-if="avisoHorario(s)" class="horario" :class="`horario--${s.horario?.estado}`">
+                  <ion-icon :icon="timeOutline" aria-hidden="true" />{{ avisoHorario(s) }}
+                </span>
                 <span class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
                 <span v-if="pessoas(s)" class="pessoas">
                   <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ textoPessoas(s) }}
@@ -132,7 +172,7 @@ import {
   actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
   onIonViewWillEnter, type RefresherCustomEvent,
 } from '@ionic/vue'
-import { chevronDown, chevronUp, locationOutline, navigateOutline, peopleOutline } from 'ionicons/icons'
+import { calendarOutline, chevronDown, chevronUp, locationOutline, navigateOutline, peopleOutline, timeOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EscolherCidade from '@/components/EscolherCidade.vue'
@@ -151,6 +191,8 @@ interface Sugestao {
   /** motivo -> quantas pessoas o marcaram em visitas boas */
   comunidade: Record<string, number>
   salvo: boolean
+  /** Só vem com o filtro "quando". aberto: o horário do mapa confirma; visto: alguém já foi nesse dia da semana. */
+  horario: { estado: 'aberto' | 'visto' | 'sem_info'; texto: string; visitas?: number } | null
 }
 interface Resposta {
   origem: { tipo: 'localizacao' | 'cidade' | 'ultima_visita'; nome: string; cidade_id: number | null } | null
@@ -184,6 +226,10 @@ const cidadeId = ref<number | null>(null)
 const ocasiao = ref('')
 const mostrarOnde = ref(false)
 const localizando = ref(false)
+// quando: dia (AAAA-MM-DD) e hora (HH:MM) da visita; vazio = qualquer dia. Não é lembrado: data velha engana.
+const quando = ref('')
+const hora = ref('')
+const mostrarQuando = ref(false)
 const cidades = ref<Cidade[]>([])
 
 const gostos = ref<string[]>([])
@@ -210,6 +256,49 @@ function lembrar() {
   } catch {
     // tudo bem não lembrar
   }
+}
+
+function dataLocal(deslocar = 0) {
+  const d = new Date()
+  d.setDate(d.getDate() + deslocar)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const hoje = () => dataLocal()
+const DIAS_RAPIDOS = [
+  { rotulo: 'Hoje', valor: () => dataLocal() },
+  { rotulo: 'Amanhã', valor: () => dataLocal(1) },
+]
+
+function diaDaSemana(data: string, estilo: 'long' | 'short' = 'long') {
+  return new Intl.DateTimeFormat('pt-BR', { weekday: estilo }).format(new Date(`${data}T12:00:00`)).replace('.', '')
+}
+
+const rotuloQuando = computed(() => {
+  if (!quando.value) return 'Qualquer dia'
+  const dia = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${quando.value}T12:00:00`))
+  return `${diaDaSemana(quando.value, 'short')}, ${dia}${hora.value ? ` às ${hora.value}` : ''}`
+})
+
+function escolherDia(valor: string) {
+  quando.value = valor
+}
+
+function limparQuando() {
+  quando.value = ''
+  hora.value = ''
+  mostrarQuando.value = false
+}
+
+/** Frase sobre o horário de um resultado (vazio se não há filtro "quando"). */
+function avisoHorario(s: Sugestao) {
+  const h = s.horario
+  if (!h || !quando.value) return ''
+  const dia = diaDaSemana(quando.value)
+  if (h.estado === 'aberto') return h.texto === 'o dia todo' ? 'Aberto o dia todo nesse dia' : `Aberto nesse dia, ${h.texto}`
+  if (h.estado === 'visto') {
+    return h.visitas === 1 ? `Alguém já foi numa ${dia}` : `${h.visitas} pessoas já foram numa ${dia}`
+  }
+  return 'Sem horário no mapa: confirme antes de ir'
 }
 
 function distancia(m: number | null) {
@@ -253,6 +342,10 @@ async function carregar() {
       p.set('cidade_id', String(cidadeId.value))
     }
     if (ocasiao.value) p.set('ocasiao', ocasiao.value)
+    if (quando.value) {
+      p.set('quando', quando.value)
+      if (hora.value) p.set('hora', hora.value)
+    }
     const r = await api<Resposta>(`/sugestoes/?${p}`)
     resultados.value = r.resultados
     origem.value = r.origem
@@ -321,6 +414,7 @@ async function acoes(s: Sugestao) {
     subHeader: metaDo(s),
     buttons: [
       { text: 'Como chegar', handler: () => { window.open(rota(s), '_blank', 'noopener') } },
+      ...(s.lugar.telefone ? [{ text: `Ligar para ${s.lugar.telefone}`, handler: () => { window.location.href = `tel:${s.lugar.telefone}` } }] : []),
       { text: 'Já fui, registrar visita', handler: () => { void router.push({ path: '/abas/lugares/visita/nova', query: { lugar: s.lugar.id } }) } },
       { text: 'Fechar', role: 'cancel' },
     ],
@@ -342,6 +436,11 @@ watch(ocasiao, () => {
   void carregar()
 })
 
+watch([quando, hora], () => {
+  if (!quando.value) hora.value = '' // a API só aceita horário junto com o dia
+  void carregar()
+})
+
 watch(mostrarOnde, async (aberto) => {
   if (aberto && !cidades.value.length) cidades.value = await api<Cidade[]>('/cidades/')
 })
@@ -352,6 +451,12 @@ onIonViewWillEnter(() => { void carregar() })
 <style scoped>
 .filtros {
   padding: 0 16px 6px;
+}
+
+.pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .onde {
@@ -382,6 +487,99 @@ onIonViewWillEnter(() => { void carregar() })
 }
 
 .onde .onde__seta {
+  color: var(--chasque-tinta-suave);
+}
+
+.quando--ativo {
+  border-color: var(--chasque-ocre);
+}
+
+.quando__rapido {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quando__rapido button {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--chasque-neblina);
+  color: var(--chasque-tinta);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.quando__rapido button.ativa {
+  background: var(--chasque-faixa);
+  color: var(--chasque-faixa-texto);
+}
+
+@media (prefers-color-scheme: dark) {
+  .quando__rapido button.ativa {
+    background: var(--chasque-faixa-texto);
+    color: var(--chasque-faixa);
+  }
+}
+
+.quando__campo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: var(--chasque-tinta);
+}
+
+.quando__campo input {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--chasque-neblina);
+  background: var(--colina-perto);
+  color: var(--chasque-tinta);
+  font: inherit;
+  color-scheme: light dark;
+}
+
+.quando__apoio {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--chasque-tinta-suave);
+}
+
+.quando__limpar {
+  margin-top: 6px;
+  height: 40px;
+}
+
+.horario {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--chasque-tinta);
+}
+
+.linha .horario {
+  margin: 3px 0 0;
+  font-size: 0.82rem;
+}
+
+.horario ion-icon {
+  flex: none;
+  font-size: 16px;
+  color: var(--chasque-ocre);
+}
+
+.horario--sem_info {
+  font-weight: 500;
   color: var(--chasque-tinta-suave);
 }
 

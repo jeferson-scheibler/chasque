@@ -202,3 +202,70 @@ class CriarLugarTests(Autenticado):
         r = self.client.post(self.url, {"nome": "cafe da praca", "lat": -29.4673, "lng": -51.9621}, format="json")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data["id"], self.cafe.id)
+
+
+class HorariosTests(TestCase):
+    SEGUNDA, SABADO, DOMINGO = __import__("datetime").date(2026, 11, 30), __import__("datetime").date(2026, 11, 28), __import__("datetime").date(2026, 11, 29)
+
+    def estado(self, horario, data, hora=None):
+        from . import horarios
+
+        return horarios.estado(horario, data, None if hora is None else int(hora[:2]) * 60 + int(hora[3:]))
+
+    def test_dia_listado_abre_e_dia_de_fora_fecha(self):
+        h = "Mo-Fr 08:00-18:00; Sa 09:00-13:00"
+        self.assertEqual(self.estado(h, self.SEGUNDA), "aberto")
+        self.assertEqual(self.estado(h, self.SABADO), "aberto")
+        self.assertEqual(self.estado(h, self.DOMINGO), "fechado")
+
+    def test_off_e_regra_mais_nova_vence(self):
+        self.assertEqual(self.estado("Mo-Su 10:00-22:00; Mo off", self.SEGUNDA), "fechado")
+        self.assertEqual(self.estado("Mo-Su 10:00-22:00; Mo off", self.DOMINGO), "aberto")
+
+    def test_hora_dentro_e_fora_do_intervalo(self):
+        h = "Mo-Su 11:00-14:00,18:00-23:00"
+        self.assertEqual(self.estado(h, self.SEGUNDA, "12:00"), "aberto")
+        self.assertEqual(self.estado(h, self.SEGUNDA, "15:30"), "fechado")
+        self.assertEqual(self.estado(h, self.SEGUNDA, "19:00"), "aberto")
+
+    def test_passa_da_meia_noite_vale_para_o_dia_seguinte_cedo(self):
+        h = "Su 18:00-02:00"  # abre domingo e vai até segunda de madrugada
+        self.assertEqual(self.estado(h, self.DOMINGO, "23:00"), "aberto")
+        self.assertEqual(self.estado(h, self.SEGUNDA, "01:00"), "aberto")
+        self.assertEqual(self.estado(h, self.SEGUNDA, "03:00"), "fechado")
+
+    def test_virgula_antes_de_dia_soma_regra(self):
+        h = "Mo-Fr 11:30-14:30, Sa 12:00-00:00, Su 12:00-15:30"
+        self.assertEqual(self.estado(h, self.SEGUNDA, "12:00"), "aberto")
+        self.assertEqual(self.estado(h, self.SABADO, "22:00"), "aberto")
+        self.assertEqual(self.estado(h, self.DOMINGO, "18:00"), "fechado")
+        # a vírgula soma no mesmo dia: almoço de segunda a sexta e jantar na sexta
+        self.assertEqual(self.estado("Mo-Fr 11:00-14:00, Fr 19:00-23:00", self.SEGUNDA, "20:00"), "fechado")
+        # vírgula entre dias do mesmo seletor não é regra nova
+        self.assertEqual(self.estado("Sa, Su 10:00-22:00; Tu-Fr 11:30-22:00", self.DOMINGO), "aberto")
+        self.assertEqual(self.estado("Mo-Tu,Th 10:00-23:00; Fr-Sa 10:00-00:00", self.SEGUNDA), "aberto")
+        self.assertEqual(self.estado("Mo-Fr 07:00-19:00; Su, PH off", self.DOMINGO), "fechado")
+
+    def test_vinte_e_quatro_sete(self):
+        self.assertEqual(self.estado("24/7", self.SEGUNDA, "04:00"), "aberto")
+
+    def test_o_que_nao_entende_vira_nao_sei(self):
+        for h in ("", "Mo-Fr 08:00+", "Apr-Oct Mo-Fr 09:00-17:00", "sunrise-sunset", "Mo-Fr 08:00-12:00 || \"ligue\"", "PH off"):
+            self.assertIsNone(self.estado(h, self.SEGUNDA), h)
+
+    def test_feriado_e_ignorado_sem_quebrar_a_semana(self):
+        self.assertEqual(self.estado("Mo-Fr 08:00-18:00; PH off", self.SEGUNDA), "aberto")
+
+    def test_texto_do_dia(self):
+        from . import horarios
+
+        self.assertEqual(horarios.texto_do_dia("Mo-Su 11:00-14:00,18:00-23:00", self.SEGUNDA), "11:00 às 14:00 e 18:00 às 23:00")
+        self.assertEqual(horarios.texto_do_dia("24/7", self.SEGUNDA), "o dia todo")
+        self.assertEqual(horarios.texto_do_dia("Mo-Fr 08:00-18:00", self.DOMINGO), "")
+
+    def test_importacao_guarda_horario_e_telefone(self):
+        osm.importar([feature("node", 91, {"amenity": "bar", "name": "Bar da Esquina", "opening_hours": "Tu-Su 18:00-23:00",
+                                           "contact:phone": "+55 51 99999-0000; +55 51 3333-0000"}, -51.96, -29.46)])
+        bar = Lugar.objects.get(id_externo="node/91")
+        self.assertEqual(bar.horario, "Tu-Su 18:00-23:00")
+        self.assertEqual(bar.telefone, "+55 51 99999-0000")

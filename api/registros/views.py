@@ -1,3 +1,4 @@
+import datetime
 import unicodedata
 
 from django.contrib.gis.geos import Point
@@ -80,7 +81,7 @@ class RegistroView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class SugestoesView(APIView):
-    """GET /api/sugestoes/?lat=&lng= | ?cidade_id= &ocasiao=
+    """GET /api/sugestoes/?lat=&lng= | ?cidade_id= &ocasiao= &quando=AAAA-MM-DD &hora=HH:MM
 
     Sem lat/lng nem cidade, procura na cidade da pessoa ou perto da última visita."""
 
@@ -101,8 +102,22 @@ class SugestoesView(APIView):
         if params.get("cidade_id", "").isdigit():
             cidade = Cidade.objects.filter(pk=int(params["cidade_id"])).first()
 
+        quando, hora = None, None
+        if params.get("quando"):
+            try:
+                quando = datetime.date.fromisoformat(params["quando"])
+            except ValueError:
+                return Response({"quando": ["Use a data no formato AAAA-MM-DD."]}, status=status.HTTP_400_BAD_REQUEST)
+        if params.get("hora"):
+            try:
+                hh, mm = params["hora"].split(":")
+                hora = int(hh) * 60 + int(mm)
+                assert quando and 0 <= int(hh) < 24 and 0 <= int(mm) < 60
+            except (ValueError, AssertionError):
+                return Response({"hora": ["Use a hora como HH:MM, junto com a data."]}, status=status.HTTP_400_BAD_REQUEST)
+
         origem = origem_da_busca(request.user, ponto, cidade)
-        resultados = sugerir(request.user, origem, ocasiao)
+        resultados = sugerir(request.user, origem, ocasiao, quando=quando, hora=hora)
         tem_gosto = (
             PesoGosto.objects.filter(usuario=request.user, peso__gt=0).exists()
             or PreferenciaDeclarada.objects.filter(usuario=request.user).exists()
@@ -119,6 +134,7 @@ class SugestoesView(APIView):
                     "combina": r["combina"],
                     "comunidade": r["comunidade"],
                     "salvo": r["salvo"],
+                    "horario": r["horario"],
                 }
                 for r in resultados
             ],

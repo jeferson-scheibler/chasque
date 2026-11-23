@@ -13,17 +13,25 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
 - Motivos da comunidade (marcados por pelo menos 3 pessoas em visitas boas) contam como motivos do lugar,
   e valem 25% a mais que os que vêm só do OpenStreetMap: foram confirmados por quem foi.
 
+- Quando a pessoa diz o dia (e, se quiser, a hora), lugares que o horário do OpenStreetMap mostra fechados
+  nesse dia saem da lista. Os que não têm horário (a maioria) ficam, com o aviso "sem horário": se alguém
+  registrou uma visita ali no mesmo dia da semana, o aviso vira "alguém já foi numa segunda", uma prova de
+  que abre (só a contagem, nunca quem foi). Lugares com horário confirmado valem um pouco mais que os sem.
+
 Cada resultado leva os motivos que mais pesaram ("combina com"), para a pessoa entender a sugestão.
 """
 
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from django.contrib.gis.db.models.functions import Distance
+import datetime
+
 from django.core.cache import cache
 from django.db.models import Q
 from django.contrib.gis.measure import D
 
+from lugares import horarios
 from lugares.models import Cidade, Lugar, MotivoComunidade
 from salvos.models import Salvo
 
@@ -35,6 +43,7 @@ KM_MEIA_VALIA = 10
 RAIO_KM = 30
 LIMITE = 20
 FATOR_COMUNIDADE = 1.25
+FATOR_SEM_HORARIO = 0.85
 POR_CATEGORIA_NO_TOPO = 2
 TOPO = 10
 
@@ -102,7 +111,19 @@ def origem_da_busca(usuario, ponto=None, cidade=None):
     return None
 
 
-def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE):
+def semana_django(data):
+    """Dia da semana no filtro `visitado_em__week_day` do Django: 1 = domingo ... 7 = sábado."""
+    return (data.weekday() + 1) % 7 + 1
+
+
+def horario_do_lugar(lugar, quando, hora):
+    """('aberto' | 'fechado' | None, texto do dia) pelo horário do OpenStreetMap."""
+    situacao = horarios.estado(lugar.horario, quando, hora)
+    return situacao, (horarios.texto_do_dia(lugar.horario, quando) if situacao == "aberto" else "")
+
+
+def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=None, hora=None):
+    """`quando` é um date (ou None) e `hora` os minutos desde 00:00 (ou None = qualquer hora)."""
     pesos = pesos_da_pessoa(usuario, ocasiao)
     positivos = [slug for slug, peso in pesos.items() if peso > 0]
     if origem is None or not positivos:
@@ -133,6 +154,14 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE):
             pontos += BONUS_SALVO
         if pontos <= 0:
             continue
+        horario = None
+        if quando:
+            situacao, texto = horario_do_lugar(lugar, quando, hora)
+            if situacao == "fechado":
+                continue
+            horario = {"estado": "aberto", "texto": texto} if situacao == "aberto" else {"estado": "sem_info", "texto": ""}
+            if situacao is None:
+                pontos *= FATOR_SEM_HORARIO
         km = lugar.distancia.km
         combina = sorted((s for s in slugs if pesos.get(s, 0) > 0), key=lambda s: (-valor(s), s))[:3]
         resultados.append({
@@ -141,7 +170,21 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE):
             "combina": combina,
             "comunidade": {s: comunidade[s] for s in combina if s in comunidade},
             "salvo": lugar.id in salvos,
+            "horario": horario,
         })
+
+    if quando:
+        sem_info = [r for r in resultados if r["horario"]["estado"] == "sem_info"]
+        vistos = Counter(
+            Registro.objects.filter(lugar_id__in=[r["lugar"].id for r in sem_info],
+                                    visitado_em__week_day=semana_django(quando))
+            .values_list("lugar_id", flat=True)
+        )
+        for r in sem_info:
+            n = vistos.get(r["lugar"].id, 0)
+            if n:
+                r["horario"] = {"estado": "visto", "texto": "", "visitas": n}
+                r["pontos"] = round(r["pontos"] / FATOR_SEM_HORARIO, 4)  # prova de que abre: sem o desconto
 
     resultados.sort(key=lambda r: (-r["pontos"], r["lugar"].distancia.m, r["lugar"].nome))
     return variar(resultados, limite)

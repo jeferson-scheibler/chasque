@@ -262,3 +262,19 @@ Cada lugar num raio de 30 km soma o peso que a pessoa dá aos motivos que ele te
 - lugares já visitados ficam de fora, e no topo vão no máximo 2 da mesma categoria.
 
 Cada sugestão diz com o que combina. Sem visitas nem gostos, a tela pede os primeiros gostos.
+
+### Quando: dia e horário
+
+O filtro "Quando" (Hoje, Amanhã ou outro dia, e horário opcional) manda `?quando=AAAA-MM-DD&hora=HH:MM` para
+`/api/sugestoes/`. Cada resultado volta com `horario.estado`:
+
+- `aberto`: o `opening_hours` do OpenStreetMap confirma, e vem o horário do dia ("13:30 às 18:30");
+- fechado: o OSM mostra fechado nesse dia ou hora, e o lugar sai da lista;
+- `visto`: sem horário no OSM, mas alguém já registrou visita ali no mesmo dia da semana (só a contagem);
+- `sem_info`: sem horário e sem visita; fica na lista com "confirme antes de ir" e, se houver, botão de ligar.
+
+Lugares sem horário confirmado valem 15% menos na ordem. O horário é lido por `lugares/horarios.py`, que
+entende os formatos comuns (dias, intervalos, "off", "24/7", madrugada, regras com `;` e com `,`) e responde
+"não sei" para o resto (meses, nascer do sol, feriado sozinho). No RS, cerca de 9% dos lugares têm horário no
+OSM e o interpretador entende 96% deles; o resto depende das visitas. Horário e telefone vêm na importação:
+para atualizar, rode de novo o `importar_osm`.

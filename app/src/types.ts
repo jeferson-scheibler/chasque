@@ -13,6 +13,7 @@ export interface Lugar {
   /** Motivos marcados por pelo menos 3 pessoas em visitas boas. Só a contagem, nunca quem. */
   motivos_comunidade: { slug: string; pessoas: number }[]
   distancia_m: number | null
+  telefone: string
 }
 
 export interface Salvo {
