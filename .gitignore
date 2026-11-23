@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+api/media/
+api/staticfiles/
+node_modules/
+app/dist/
+app/android/
+app/ios/
+.vscode/
+.idea/
+.DS_Store
