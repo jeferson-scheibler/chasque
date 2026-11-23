@@ -2,7 +2,7 @@
   <ion-page>
     <ion-tabs>
       <ion-router-outlet />
-      <ion-tab-bar slot="bottom" class="abas">
+      <ion-tab-bar slot="bottom" class="abas" :class="{ 'abas--oculta': emFormulario }">
         <BordaAbas class="abas__borda" />
         <ion-tab-button tab="lugares" href="/abas/lugares">
           <ion-icon :icon="bookmarkOutline" aria-hidden="true" />
@@ -37,11 +37,16 @@
 <script setup lang="ts">
 import { IonIcon, IonLabel, IonPage, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
 import { add, bookmarkOutline, mapOutline, personCircleOutline, sparklesOutline } from 'ionicons/icons'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AdicionarFolha from '@/components/AdicionarFolha.vue'
 import BordaAbas from '@/components/BordaAbas.vue'
 import { useAdicionar } from '@/stores/adicionar'
 
 const adicionar = useAdicionar()
+const route = useRoute()
+// No formulário de visita o botão de salvar fica embaixo; a barra (e o sol) saem da frente.
+const emFormulario = computed(() => route.path.includes('/visita/'))
 </script>
 
 <style scoped>
@@ -60,6 +65,10 @@ const adicionar = useAdicionar()
   right: 0;
   bottom: calc(100% - 1px);
   pointer-events: none;
+}
+
+.abas--oculta {
+  display: none;
 }
 
 ion-tab-button {

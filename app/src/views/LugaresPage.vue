@@ -68,6 +68,7 @@
                     <span class="linha__titulo">{{ salvo.lugar!.nome }}</span>
                     <span class="linha__meta">{{ resumoDoLugar(salvo.lugar!) || NOME_DO_TIPO[salvo.tipo] }}</span>
                   </span>
+                  <span v-if="salvo.visitado" class="visitado">Visitado</span>
                   <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
                 </router-link>
               </li>
@@ -80,11 +81,7 @@
         </ion-infinite-scroll>
       </template>
 
-      <vazio
-        v-else
-        titulo="Os lugares onde você foi aparecem aqui"
-        texto="Registrar uma visita, com o motivo de ter gostado, chega na próxima versão do Chasque."
-      />
+      <lista-visitas v-else ref="listaVisitas" />
     </ion-content>
   </ion-page>
 </template>
@@ -96,7 +93,9 @@ import {
 } from '@ionic/vue'
 import { chevronForward, logoInstagram } from 'ionicons/icons'
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import Faixa from '@/components/Faixa.vue'
+import ListaVisitas from '@/components/ListaVisitas.vue'
 import Vazio from '@/components/Vazio.vue'
 import { iconeDaCategoria } from '@/categorias'
 import { api } from '@/services/api'
@@ -109,6 +108,8 @@ const OPCOES = [
 ] as const
 
 const adicionar = useAdicionar()
+const route = useRoute()
+const listaVisitas = ref<InstanceType<typeof ListaVisitas> | null>(null)
 
 const aba = ref<'salvos' | 'visitados'>('salvos')
 const salvos = ref<Salvo[]>([])
@@ -151,7 +152,12 @@ async function carregarMais(evento: InfiniteScrollCustomEvent) {
   }
 }
 
-onIonViewWillEnter(() => { void recarregar() })
+onIonViewWillEnter(() => {
+  // Depois de registrar uma visita, a tela volta com ?aba=visitados.
+  if (route.query.aba === 'visitados') aba.value = 'visitados'
+  void recarregar()
+  void listaVisitas.value?.recarregar()
+})
 </script>
 
 <style scoped>
@@ -180,6 +186,16 @@ onIonViewWillEnter(() => { void recarregar() })
 .alternador button.ativo {
   background: var(--chasque-faixa-texto);
   color: var(--chasque-faixa);
+}
+
+.visitado {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ion-color-success) 16%, transparent);
+  color: var(--ion-color-success);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .pendentes {

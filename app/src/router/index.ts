@@ -14,9 +14,11 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', redirect: '/abas/lugares' },
       { path: 'sugestoes', component: () => import('@/views/SugestoesPage.vue') },
-      { path: 'registrar', redirect: '/abas/lugares' },
+      { path: 'registrar', redirect: '/abas/lugares/visita/nova' },
       { path: 'lugares', component: () => import('@/views/LugaresPage.vue') },
       { path: 'lugares/salvo/:id(\\d+)', component: () => import('@/views/SalvoPage.vue') },
+      { path: 'lugares/visita/nova', component: () => import('@/views/VisitaPage.vue') },
+      { path: 'lugares/visita/:id(\\d+)', component: () => import('@/views/VisitaPage.vue') },
       { path: 'mapa', component: () => import('@/views/MapaPage.vue') },
       { path: 'conta', component: () => import('@/views/ContaPage.vue') },
     ],

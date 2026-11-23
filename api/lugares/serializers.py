@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Cidade, Lugar
+from .models import Cidade, Lugar, Tag
 from .osm import nome_da_categoria
 
 
@@ -8,6 +8,14 @@ class CidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cidade
         fields = ["id", "nome"]
+
+
+class TagSerializer(serializers.ModelSerializer):
+    grupo_nome = serializers.CharField(source="get_grupo_display", read_only=True)
+
+    class Meta:
+        model = Tag
+        fields = ["slug", "nome", "grupo", "grupo_nome"]
 
 
 class LugarSerializer(serializers.ModelSerializer):

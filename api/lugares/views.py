@@ -10,9 +10,9 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from .models import Cidade, Lugar
+from .models import Cidade, Lugar, Tag
 from .osm import cidade_mais_proxima
-from .serializers import CidadeSerializer, CriarLugarSerializer, LugarSerializer
+from .serializers import CidadeSerializer, CriarLugarSerializer, LugarSerializer, TagSerializer
 
 LIMITE_RESULTADOS = 20
 RAIO_DUPLICADO_M = 200
@@ -34,6 +34,19 @@ def ponto_da_query(params):
     if -90 <= lat <= 90 and -180 <= lng <= 180:
         return Point(lng, lat, srid=4326)
     return None
+
+
+class LugarView(generics.RetrieveAPIView):
+    serializer_class = LugarSerializer
+    queryset = Lugar.objects.prefetch_related("tags")
+
+
+class TagsView(generics.ListAPIView):
+    """Motivos para marcar numa visita, agrupados (ambiente, preço, comida, serviço, experiência)."""
+
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
+    pagination_class = None
 
 
 class CidadesView(generics.ListAPIView):

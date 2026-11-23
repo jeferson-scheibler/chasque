@@ -1,10 +1,20 @@
 from django.db import IntegrityError, transaction
+from django.db.models import Exists, OuterRef
 from rest_framework import generics, status
 from rest_framework.response import Response
+
+from registros.models import Registro
 
 from . import instagram
 from .models import Salvo
 from .serializers import CompartilhamentoSerializer, SalvoSerializer
+
+
+def com_visita(salvos):
+    """Marca os salvos cujo lugar a pessoa já visitou (registrou visita)."""
+    return salvos.annotate(
+        visitado=Exists(Registro.objects.filter(usuario=OuterRef("usuario"), lugar=OuterRef("lugar")))
+    )
 
 
 class SalvosView(generics.ListAPIView):
@@ -14,7 +24,7 @@ class SalvosView(generics.ListAPIView):
     serializer_class = SalvoSerializer
 
     def get_queryset(self):
-        salvos = Salvo.objects.filter(usuario=self.request.user).select_related("lugar").prefetch_related("lugar__tags")
+        salvos = com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags")
         if self.request.query_params.get("pendentes") == "1":
             salvos = salvos.filter(lugar__isnull=True)
         return salvos
@@ -55,4 +65,4 @@ class SalvoView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
-        return Salvo.objects.filter(usuario=self.request.user).select_related("lugar")
+        return com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags")

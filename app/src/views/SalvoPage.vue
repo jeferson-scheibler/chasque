@@ -33,6 +33,9 @@
           <ul v-if="salvo.lugar.tags.length" class="motivos" aria-label="Motivos do lugar">
             <li v-for="tag in salvo.lugar.tags" :key="tag">{{ nomeDaTag(tag) }}</li>
           </ul>
+          <router-link class="botao botao--sol visitei" :to="{ path: '/abas/lugares/visita/nova', query: { salvo: salvo.id } }">
+            <ion-icon :icon="footstepsOutline" aria-hidden="true" />{{ salvo.visitado ? 'Registrar outra visita' : 'Já fui, registrar visita' }}
+          </router-link>
           <button type="button" class="botao botao--texto" @click="trocando = true">Não é esse lugar</button>
         </section>
 
@@ -68,7 +71,7 @@
 
 <script setup lang="ts">
 import { alertController, IonContent, IonIcon, IonPage, IonSpinner, toastController } from '@ionic/vue'
-import { logoInstagram, openOutline, trashOutline } from 'ionicons/icons'
+import { footstepsOutline, logoInstagram, openOutline, trashOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BuscaLugar from '@/components/BuscaLugar.vue'
@@ -235,6 +238,10 @@ onMounted(carregar)
   color: var(--chasque-tinta);
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+.visitei {
+  margin-top: 18px;
 }
 
 .lugar .botao--texto {

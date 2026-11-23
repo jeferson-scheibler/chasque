@@ -21,8 +21,32 @@ export interface Salvo {
   perfil: string
   texto: string
   lugar: Lugar | null
+  visitado: boolean
   criado_em: string
 }
+
+export type Ocasiao = 'sozinho' | 'casal' | 'familia' | 'amigos' | 'trabalho'
+
+export interface Registro {
+  id: number
+  lugar: Lugar
+  visitado_em: string
+  ocasiao: Ocasiao
+  nota: number
+  tags: string[]
+  motivo: string
+  criado_em: string
+}
+
+export interface Motivo {
+  slug: string
+  nome: string
+  grupo: string
+  grupo_nome: string
+}
+
+/** Rótulo de cada nota, de 1 a 5 sóis. */
+export const NOTAS = ['', 'Não gostei', 'Podia ser melhor', 'Foi ok', 'Gostei', 'Amei, voltaria sempre']
 
 export interface Cidade {
   id: number

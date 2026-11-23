@@ -74,6 +74,10 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET | `/api/cidades/` | Cidades importadas do OSM. |
 | GET, POST | `/api/salvos/` | Lista os salvos (`?pendentes=1` só os sem lugar) ou recebe um compartilhamento (`url`, `text`, `title`). |
 | GET, PATCH, DELETE | `/api/salvos/<id>/` | Ver, vincular a um lugar (`lugar_id`), anotar (`texto`) ou remover. |
+| GET | `/api/lugares/<id>/` | Um lugar. |
+| GET | `/api/tags/` | Motivos que dá para marcar numa visita, com o grupo (ambiente, preço, comida...). |
+| GET, POST | `/api/registros/` | Visitas da pessoa (`?q=` busca no motivo, no lugar e na cidade) ou registra uma (`lugar_id`, `nota` 1 a 5, `ocasiao`, `tags`, `motivo`, `visitado_em`). |
+| GET, PATCH, DELETE | `/api/registros/<id>/` | Ver, editar ou apagar uma visita. |
 | GET | `/api/healthz` | Saúde da API e do banco. |
 
 ## Base de lugares (OpenStreetMap)
@@ -141,6 +145,14 @@ Onde o compartilhamento funciona hoje:
 
 ## Próximas etapas
 
-1. Registro de visita em até 3 toques e lista pessoal com busca por motivo.
-2. Onboarding de gostos (`PreferenciaDeclarada`) e primeira sugestão por tags, ocasião e distância.
-3. Mapa com MapLibre e tiles PMTiles próprios.
+1. Onboarding de gostos (`PreferenciaDeclarada`) e primeira sugestão por tags, ocasião e distância.
+2. Mapa com MapLibre e tiles PMTiles próprios.
+
+## Registro de visita e perfil de gosto
+
+Uma visita guarda o lugar, a nota (1 a 5 sóis), os motivos marcados, a ocasião, a data e um texto livre.
+Exige pelo menos um motivo marcado ou escrito: o porquê é o que o Chasque guarda.
+
+Cada visita alimenta o perfil de gosto (`PesoGosto`), recalculado a cada registro, edição ou exclusão:
+a visita soma `(nota - 3) / 2` a cada motivo marcado, no geral e na ocasião. Nota 5 soma +1, nota 3 não
+muda nada, nota 1 soma -1. As sugestões vão ler esses pesos.

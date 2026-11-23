@@ -165,6 +165,11 @@ class BuscaTests(Autenticado):
         self.client.force_authenticate(None)
         self.assertEqual(self.buscar(q="cafe").status_code, 401)
 
+    def test_um_lugar_pelo_id(self):
+        r = self.client.get(f"/api/lugares/{self.cafe.id}/")
+        self.assertEqual((r.status_code, r.data["nome"]), (200, "Café da Praça"))
+        self.assertEqual(self.client.get("/api/lugares/999999/").status_code, 404)
+
     def test_lista_cidades(self):
         r = self.client.get("/api/cidades/")
         self.assertEqual(r.data, [{"id": self.lajeado.id, "nome": "Lajeado"}])

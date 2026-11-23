@@ -9,7 +9,8 @@
     @did-present="focar"
   >
     <div class="folha__corpo">
-      <h2>Salvar do Instagram</h2>
+      <h2>Adicionar</h2>
+      <h3 class="folha__sub">Do Instagram</h3>
       <p class="folha__apoio">Cole o link de um post, reel ou perfil. O Chasque guarda só o link, sem rastreio.</p>
 
       <form @submit.prevent="salvar">
@@ -45,20 +46,21 @@
         </button>
       </form>
 
-      <div class="folha__depois">
+      <button type="button" class="folha__depois" @click="registrarVisita">
         <ion-icon :icon="footstepsOutline" aria-hidden="true" />
-        <div>
+        <span>
           <strong>Registrar uma visita</strong>
-          <span>Guardar por que você gostou de um lugar onde já foi. Chega na próxima versão.</span>
-        </div>
-      </div>
+          <span>Guarde por que você gostou de um lugar onde já foi.</span>
+        </span>
+        <ion-icon :icon="chevronForward" aria-hidden="true" class="folha__seta" />
+      </button>
     </div>
   </ion-modal>
 </template>
 
 <script setup lang="ts">
 import { IonIcon, IonModal } from '@ionic/vue'
-import { alertCircleOutline, checkmarkCircle, footstepsOutline, logoInstagram } from 'ionicons/icons'
+import { alertCircleOutline, checkmarkCircle, chevronForward, footstepsOutline, logoInstagram } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, ErroApi } from '@/services/api'
@@ -125,6 +127,11 @@ async function salvar() {
   }
 }
 
+async function registrarVisita() {
+  adicionar.fechar()
+  await router.push('/abas/lugares/visita/nova')
+}
+
 function aoFechar() {
   adicionar.fechar()
   link.value = ''
@@ -149,6 +156,14 @@ h2 {
   margin: 0 0 6px;
   font-size: 1.5rem;
   font-weight: 650;
+  color: var(--chasque-tinta);
+}
+
+.folha__sub {
+  margin: 0 0 4px;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: 1.05rem;
+  font-weight: 600;
   color: var(--chasque-tinta);
 }
 
@@ -269,11 +284,25 @@ h2 {
 .folha__depois {
   display: flex;
   gap: 14px;
-  align-items: flex-start;
-  margin-top: 26px;
-  padding-top: 20px;
+  align-items: center;
+  width: 100%;
+  margin-top: 22px;
+  padding: 18px 0 4px;
+  border: 0;
   border-top: 1px solid var(--chasque-neblina);
+  background: transparent;
   color: var(--chasque-tinta-suave);
+  font: inherit;
+  text-align: left;
+}
+
+.folha__depois > span {
+  flex: 1;
+}
+
+.folha__seta {
+  font-size: 18px !important;
+  margin-top: 0 !important;
 }
 
 .folha__depois ion-icon {
@@ -289,7 +318,7 @@ h2 {
   margin-bottom: 2px;
 }
 
-.folha__depois span {
+.folha__depois span span {
   font-size: 0.875rem;
   line-height: 1.4;
 }
