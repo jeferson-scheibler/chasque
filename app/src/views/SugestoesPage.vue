@@ -10,15 +10,13 @@
       <!-- Onde e com quem -->
       <div v-if="temGosto" class="filtros">
         <div class="pilulas">
-        <button type="button" class="onde" @click="mostrarOnde = !mostrarOnde">
+        <button type="button" class="onde" :aria-expanded="mostrarOnde" @click="mostrarOnde = !mostrarOnde">
           <ion-icon :icon="origem?.tipo === 'localizacao' ? navigateOutline : locationOutline" aria-hidden="true" />
           <span>{{ origem ? origem.nome : 'Escolher onde' }}</span>
-          <ion-icon :icon="mostrarOnde ? chevronUp : chevronDown" aria-hidden="true" class="onde__seta" />
         </button>
-        <button type="button" class="onde quando" :class="{ 'quando--ativo': quando }" @click="mostrarQuando = !mostrarQuando">
+        <button type="button" class="onde quando" :class="{ 'quando--ativo': quando }" :aria-expanded="mostrarQuando" @click="mostrarQuando = !mostrarQuando">
           <ion-icon :icon="calendarOutline" aria-hidden="true" />
           <span>{{ rotuloQuando }}</span>
-          <ion-icon :icon="mostrarQuando ? chevronUp : chevronDown" aria-hidden="true" class="onde__seta" />
         </button>
         </div>
         <div v-if="mostrarOnde" class="onde__painel">
@@ -185,7 +183,7 @@ import {
   actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
   onIonViewWillEnter, type RefresherCustomEvent,
 } from '@ionic/vue'
-import { calendarOutline, chevronDown, chevronUp, locationOutline, navigateOutline, peopleOutline, timeOutline } from 'ionicons/icons'
+import { calendarOutline, locationOutline, navigateOutline, peopleOutline, timeOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EscolherCidade from '@/components/EscolherCidade.vue'
@@ -299,9 +297,9 @@ function diaDaSemana(data: string, estilo: 'long' | 'short' = 'long') {
 }
 
 const rotuloQuando = computed(() => {
-  if (!quando.value) return 'Qualquer dia'
+  if (!quando.value) return 'Quando?'
   const dia = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(`${quando.value}T12:00:00`))
-  return `${diaDaSemana(quando.value, 'short')}, ${dia}${hora.value ? ` às ${hora.value}` : ''}`
+  return `${diaDaSemana(quando.value, 'short')} ${dia}${hora.value ? `, ${hora.value}` : ''}`
 })
 
 function escolherDia(valor: string) {
@@ -479,10 +477,15 @@ onIonViewWillEnter(() => { void carregar() })
   padding: 0 16px 6px;
 }
 
+/* onde e quando sempre na mesma linha: o texto mais longo encolhe com reticências */
 .pilulas {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+}
+
+.pilulas .onde {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .onde {
@@ -510,10 +513,6 @@ onIonViewWillEnter(() => { void carregar() })
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.onde .onde__seta {
-  color: var(--chasque-tinta-suave);
 }
 
 .quando--ativo {
