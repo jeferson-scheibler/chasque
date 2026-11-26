@@ -16,7 +16,8 @@
         </button>
         <button type="button" class="onde quando" :class="{ 'quando--ativo': quando }" :aria-expanded="mostrarQuando" @click="mostrarQuando = !mostrarQuando">
           <ion-icon :icon="calendarOutline" aria-hidden="true" />
-          <span>{{ rotuloQuando }}</span>
+          <span class="quando__longo">{{ rotuloQuando }}</span>
+          <span class="quando__curto">{{ rotuloQuandoCurto }}</span>
         </button>
         </div>
         <div v-if="mostrarOnde" class="onde__painel">
@@ -311,6 +312,13 @@ const rotuloQuando = computed(() => {
   return `${diaDaSemana(quando.value, 'short')} ${dia}${hora.value ? `, ${hora.value}` : ''}`
 })
 
+// em tela estreita: sem o dia da semana ("30/11 19:30"), para caber ao lado do "onde" sem reticências
+const rotuloQuandoCurto = computed(() => {
+  if (!quando.value) return 'Quando?'
+  const [, mes, dia] = quando.value.split('-')
+  return `${dia}/${mes}${hora.value ? ` ${hora.value}` : ''}`
+})
+
 function escolherDia(valor: string) {
   quando.value = valor
 }
@@ -533,6 +541,43 @@ onIonViewWillEnter(() => { void carregar() })
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.quando__curto {
+  display: none;
+}
+
+/* celular estreito: pílulas mais justas e data curta, para onde e quando caberem inteiros */
+@media (max-width: 389px) {
+  .filtros {
+    padding: 0 12px 6px;
+  }
+
+  .pilulas {
+    gap: 6px;
+  }
+
+  .onde {
+    gap: 6px;
+    padding: 0 11px;
+  }
+
+  .filtros .ocasioes {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 359px) {
+  .quando__longo {
+    display: none;
+  }
+
+  .quando__curto {
+    display: inline;
+  }
 }
 
 .quando--ativo {

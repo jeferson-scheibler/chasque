@@ -87,6 +87,25 @@ ion-toolbar {
   padding-right: 96px;
 }
 
+/* celular estreito: título e subtítulo um pouco menores, para o subtítulo não quebrar sob as araucárias */
+@media (max-width: 359px) {
+  ion-toolbar {
+    --padding-start: 16px;
+  }
+
+  .faixa__titulos h1 {
+    font-size: 1.6rem;
+  }
+
+  .faixa__titulos p {
+    font-size: 0.82rem;
+  }
+
+  .faixa__titulos--arvores {
+    padding-right: 88px;
+  }
+}
+
 ion-back-button {
   --color: var(--chasque-faixa-texto);
   --icon-font-size: 24px;
