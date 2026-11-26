@@ -16,7 +16,8 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
 - Quando a pessoa diz o dia (e, se quiser, a hora), lugares que o horário do OpenStreetMap mostra fechados
   nesse dia saem da lista. Os que não têm horário (a maioria) ficam, com o aviso "sem horário": se alguém
   registrou uma visita ali no mesmo dia da semana, o aviso vira "alguém já foi numa segunda", uma prova de
-  que abre (só a contagem, nunca quem foi). Lugares com horário confirmado valem um pouco mais que os sem.
+  que abre (só a contagem de pessoas, nas regras dos motivos da comunidade: a partir de 3 pessoas e só de quem
+  ajuda a descrever os lugares). Lugares com horário confirmado valem um pouco mais que os sem.
 
 - Com um tipo escolhido (bar, lanche, restaurante...), entram todos os lugares daquele tipo no raio, tenham
   ou não motivos: o gosto só ordena. Sem isso, um bar sem nenhum motivo no mapa (a maioria) nunca apareceria.
@@ -26,19 +27,21 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
   (motivo que vem da capacidade no OSM, do tipo de lugar ou de quem já foi) pesa bastante; área aberta, música
   e ambiente animado ajudam; silencioso e aconchegante (que costuma ser pequeno) descontam. Capacidade
   conhecida soma mais quanto maior, e lugar com menos de 20 lugares vale metade. Visitas boas registradas
-  como "evento ou grupo" no lugar (de qualquer pessoa, só a contagem) contam como prova.
+  como "evento ou grupo" no lugar contam como prova, nas mesmas regras (pessoas diferentes, a partir de 3).
+  Todas as provas entram antes do desconto pela distância.
 
 Cada resultado leva os motivos que mais pesaram ("combina com"), para a pessoa entender a sugestão.
 """
 
 import math
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from django.contrib.gis.db.models.functions import Distance
 import datetime
 
+from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.contrib.gis.measure import D
 
 from lugares import horarios
@@ -75,6 +78,9 @@ BONUS_CAPACIDADE = 0.6
 CAPACIDADE_PEQUENA = 20
 BONUS_VISITA_EM_GRUPO = 0.5
 MAXIMO_VISITAS_EM_GRUPO = 3
+NOTA_BOA = 4
+# teto de lugares avaliados por busca (os mais perto): no modo tipo, uma capital tem milhares no raio
+MAXIMO_CANDIDATOS = 400
 POR_CATEGORIA_NO_TOPO = 2
 TOPO = 10
 
@@ -147,6 +153,22 @@ def semana_django(data):
     return (data.weekday() + 1) % 7 + 1
 
 
+def pessoas_que_foram(lugar_ids, **filtro):
+    """{lugar_id: pessoas diferentes} com visitas que batem com o filtro, nas mesmas regras dos motivos da
+    comunidade: só quem deixou "Ajudar a descrever os lugares" ligado, contas ativas, e só a partir de
+    MOTIVOS_MIN_PESSOAS pessoas (abaixo disso daria para saber quem esteve lá). Conta pessoas, não visitas:
+    uma conta sozinha não infla um lugar."""
+    if not lugar_ids:
+        return {}
+    contagem = (
+        Registro.objects.filter(lugar_id__in=lugar_ids, usuario__contribuir_motivos=True, usuario__is_active=True,
+                                **filtro)
+        .values("lugar_id")
+        .annotate(pessoas=Count("usuario", distinct=True))
+    )
+    return {c["lugar_id"]: c["pessoas"] for c in contagem if c["pessoas"] >= settings.MOTIVOS_MIN_PESSOAS}
+
+
 def horario_do_lugar(lugar, quando, hora):
     """('aberto' | 'fechado' | None, texto do dia) pelo horário do OpenStreetMap."""
     situacao = horarios.estado(lugar.horario, quando, hora)
@@ -175,8 +197,9 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
         candidatos
         .distinct()
         .annotate(distancia=Distance("ponto", origem["ponto"]))
+        .order_by("distancia")
         .prefetch_related("tags", "motivos_comunidade__tag")
-    )
+    )[:MAXIMO_CANDIDATOS]
 
     fator = raridade()
     resultados = []
@@ -203,13 +226,10 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
             if situacao == "fechado":
                 continue
             horario = {"estado": "aberto", "texto": texto} if situacao == "aberto" else {"estado": "sem_info", "texto": ""}
-            if situacao is None:
-                pontos *= FATOR_SEM_HORARIO
-        km = lugar.distancia.km
         combina = sorted((s for s in slugs if pesos.get(s, 0) > 0), key=lambda s: (-valor(s), s))[:3]
         resultados.append({
             "lugar": lugar,
-            "pontos": round(pontos / (1 + km / KM_MEIA_VALIA), 4),
+            "bruto": pontos,  # antes da distância; vira "pontos" no fim, depois das provas
             "combina": combina,
             "comunidade": {s: comunidade[s] for s in combina if s in comunidade},
             "salvo": lugar.id in salvos,
@@ -218,28 +238,25 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
         })
 
     if ocasiao == GRUPO:
-        em_grupo = Counter(
-            Registro.objects.filter(lugar_id__in=[r["lugar"].id for r in resultados], ocasiao=GRUPO, nota__gte=4)
-            .values_list("lugar_id", flat=True)
-        )
+        em_grupo = pessoas_que_foram([r["lugar"].id for r in resultados], ocasiao=GRUPO, nota__gte=NOTA_BOA)
         for r in resultados:
             n = em_grupo.get(r["lugar"].id, 0)
             if n:
                 r["grupo"]["visitas"] = n
-                r["pontos"] = round(r["pontos"] + BONUS_VISITA_EM_GRUPO * min(n, MAXIMO_VISITAS_EM_GRUPO), 4)
+                r["bruto"] += BONUS_VISITA_EM_GRUPO * min(n, MAXIMO_VISITAS_EM_GRUPO)
 
     if quando:
         sem_info = [r for r in resultados if r["horario"]["estado"] == "sem_info"]
-        vistos = Counter(
-            Registro.objects.filter(lugar_id__in=[r["lugar"].id for r in sem_info],
-                                    visitado_em__week_day=semana_django(quando))
-            .values_list("lugar_id", flat=True)
-        )
+        vistos = pessoas_que_foram([r["lugar"].id for r in sem_info], visitado_em__week_day=semana_django(quando))
         for r in sem_info:
             n = vistos.get(r["lugar"].id, 0)
             if n:
-                r["horario"] = {"estado": "visto", "texto": "", "visitas": n}
-                r["pontos"] = round(r["pontos"] / FATOR_SEM_HORARIO, 4)  # prova de que abre: sem o desconto
+                r["horario"] = {"estado": "visto", "texto": "", "visitas": n}  # prova de que abre: sem o desconto
+            else:
+                r["bruto"] *= FATOR_SEM_HORARIO
+
+    for r in resultados:
+        r["pontos"] = round(r.pop("bruto") / (1 + r["lugar"].distancia.km / KM_MEIA_VALIA), 4)
 
     resultados.sort(key=lambda r: (-r["pontos"], r["lugar"].distancia.m, r["lugar"].nome))
     return variar(resultados, limite)

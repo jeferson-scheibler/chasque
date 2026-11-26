@@ -54,6 +54,9 @@ class ClassificacaoTests(TestCase):
     def test_capacidade(self):
         self.assertEqual(osm.capacidade({"capacity": "~80"}), 80)
         self.assertEqual(osm.capacidade({"seats": "100-150"}), 100)
+        self.assertEqual(osm.capacidade({"capacity": "1.500"}), 1500)
+        self.assertEqual(osm.capacidade({"capacity": "1 200 pessoas"}), 1200)
+        self.assertEqual(osm.capacidade({"capacity": "1,5"}), 1)
         self.assertIsNone(osm.capacidade({"capacity": "muita"}))
         self.assertIsNone(osm.capacidade({}))
 
@@ -242,6 +245,13 @@ class HorariosTests(TestCase):
         self.assertEqual(self.estado(h, self.DOMINGO, "23:00"), "aberto")
         self.assertEqual(self.estado(h, self.SEGUNDA, "01:00"), "aberto")
         self.assertEqual(self.estado(h, self.SEGUNDA, "03:00"), "fechado")
+        # sem hora, a segunda não conta como aberta: só sobra a madrugada
+        self.assertEqual(self.estado(h, self.SEGUNDA), "fechado")
+        # virada que vai até de manhã conta, e o texto diz até quando
+        from . import horarios
+
+        self.assertEqual(self.estado("Su 22:00-08:00", self.SEGUNDA), "aberto")
+        self.assertEqual(horarios.texto_do_dia("Su 22:00-08:00", self.SEGUNDA), "até 08:00")
 
     def test_virgula_antes_de_dia_soma_regra(self):
         h = "Mo-Fr 11:30-14:30, Sa 12:00-00:00, Su 12:00-15:30"

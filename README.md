@@ -282,11 +282,15 @@ gente. O que um encontro grande pede soma ao gosto da pessoa:
 - ao ar livre (+0,4), música ao vivo e animado (+0,3) e churrasco (+0,2) ajudam; silencioso (-0,4) e
   aconchegante (-0,2), que costuma ser pequeno, descontam;
 - com capacidade conhecida, soma até +0,6 (cheio a partir de 150 pessoas); com menos de 20, vale metade;
-- cada visita de 4 ou 5 sóis registrada como evento ou grupo no lugar soma +0,5 (até 3), de qualquer pessoa e
-  só pela contagem.
+- cada pessoa que registrou visita de 4 ou 5 sóis como evento ou grupo no lugar soma +0,5 (até 3). Vale a
+  regra dos motivos da comunidade: só a partir de 3 pessoas diferentes e só de quem ajuda a descrever os
+  lugares, para ninguém descobrir quem foi e para uma conta sozinha não inflar o próprio bar.
 
-Cada resultado volta com `grupo: {capacidade, visitas}` e a tela mostra "Cabem umas 120 pessoas" ou "Já recebeu
-2 grupos e agradou". A capacidade quase nunca está no OSM (cerca de 170 bares e restaurantes em todo o Sul):
+As provas entram antes do desconto pela distância. A busca avalia no máximo os 400 lugares mais perto que
+servem (no modo tipo, uma capital tem milhares de restaurantes no raio).
+
+Cada resultado volta com `grupo: {capacidade, visitas}` e a tela mostra "Cabem umas 120 pessoas" ou "4 pessoas
+fizeram encontro aqui e gostaram". A capacidade quase nunca está no OSM (cerca de 170 bares e restaurantes em todo o Sul):
 o resto vem do tipo de lugar e das visitas. Junto com o tipo "Bar" e o dia, responde "bar para 30 pessoas
 aberto na segunda".
 
@@ -297,10 +301,13 @@ O filtro "Quando" (Hoje, Amanhã ou outro dia, e horário opcional) manda `?quan
 
 - `aberto`: o `opening_hours` do OpenStreetMap confirma, e vem o horário do dia ("13:30 às 18:30");
 - fechado: o OSM mostra fechado nesse dia ou hora, e o lugar sai da lista;
-- `visto`: sem horário no OSM, mas alguém já registrou visita ali no mesmo dia da semana (só a contagem);
+- `visto`: sem horário no OSM, mas 3 ou mais pessoas já registraram visita ali no mesmo dia da semana (só a
+  contagem de pessoas, nas regras dos motivos da comunidade: quem desligou "Ajudar a descrever os lugares" não
+  entra, e uma pessoa com várias visitas conta uma vez);
 - `sem_info`: sem horário e sem visita; fica na lista com "confirme antes de ir" e, se houver, botão de ligar.
 
-Lugares sem horário confirmado valem 15% menos na ordem. O horário é lido por `lugares/horarios.py`, que
+Lugares sem horário confirmado valem 15% menos na ordem. Sem hora escolhida, a madrugada da noite anterior
+("Su 18:00-02:00") não faz a segunda contar como aberta; só uma virada que vai além das 06:00 conta. O horário é lido por `lugares/horarios.py`, que
 entende os formatos comuns (dias, intervalos, "off", "24/7", madrugada, regras com `;` e com `,`) e responde
 "não sei" para o resto (meses, nascer do sol, feriado sozinho). No RS, cerca de 9% dos lugares têm horário no
 OSM e o interpretador entende 96% deles; o resto depende das visitas. Horário e telefone vêm na importação:

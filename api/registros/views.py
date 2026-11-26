@@ -1,4 +1,5 @@
 import datetime
+import re
 import unicodedata
 
 from django.contrib.gis.geos import Point
@@ -112,12 +113,10 @@ class SugestoesView(APIView):
             except ValueError:
                 return Response({"quando": ["Use a data no formato AAAA-MM-DD."]}, status=status.HTTP_400_BAD_REQUEST)
         if params.get("hora"):
-            try:
-                hh, mm = params["hora"].split(":")
-                hora = int(hh) * 60 + int(mm)
-                assert quando and 0 <= int(hh) < 24 and 0 <= int(mm) < 60
-            except (ValueError, AssertionError):
+            achado = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", params["hora"])
+            if not quando or not achado:
                 return Response({"hora": ["Use a hora como HH:MM, junto com a data."]}, status=status.HTTP_400_BAD_REQUEST)
+            hora = int(achado.group(1)) * 60 + int(achado.group(2))
 
         origem = origem_da_busca(request.user, ponto, cidade)
         resultados = sugerir(request.user, origem, ocasiao, quando=quando, hora=hora, tipo=tipo)

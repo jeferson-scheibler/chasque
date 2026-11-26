@@ -146,6 +146,10 @@ class SugestoesTests(Base):
         super().setUp()
         from lugares.models import Cidade, Tag
 
+        self.cris, self.dani, self.edu = (
+            Usuario.objects.create_user(email=f"{n}@exemplo.com", password="x" * 12, nome=n.title())
+            for n in ("cris", "dani", "edu")
+        )
         self.lajeado = Cidade.objects.create(nome="Lajeado", ponto=Point(-51.9617, -29.4669), id_externo="node/9")
         self.tag = {t.slug: t for t in Tag.objects.all()}
         # o café da Base (já tem lugar próprio) recebe motivos para a Ana visitar
@@ -218,11 +222,20 @@ class SugestoesTests(Base):
         r = self.quando(quando="2026-11-30")
         self.assertEqual(self.nomes(r), ["Bar do Centro"])
         self.assertEqual(r.data["resultados"][0]["horario"], {"estado": "sem_info", "texto": ""})
-        # a Bia foi ao bar numa segunda (23/11/2026): abre às segundas
-        Registro.objects.create(usuario=self.bia, lugar=self.bar_perto, nota=4, ocasiao="amigos",
-                                visitado_em=datetime.date(2026, 11, 23))
+        # duas pessoas foram ao bar numa segunda (23/11/2026), uma delas duas vezes: ainda não basta
+        segunda = datetime.date(2026, 11, 23)
+        for quem in (self.bia, self.bia, self.cris):
+            Registro.objects.create(usuario=quem, lugar=self.bar_perto, nota=4, ocasiao="amigos", visitado_em=segunda)
+        self.assertEqual(self.quando(quando="2026-11-30").data["resultados"][0]["horario"]["estado"], "sem_info")
+        # quem desligou "ajudar a descrever os lugares" não conta, nem em visita privada
+        self.dani.contribuir_motivos = False
+        self.dani.save()
+        Registro.objects.create(usuario=self.dani, lugar=self.bar_perto, nota=4, ocasiao="amigos", visitado_em=segunda)
+        self.assertEqual(self.quando(quando="2026-11-30").data["resultados"][0]["horario"]["estado"], "sem_info")
+        # a terceira pessoa: abre às segundas
+        Registro.objects.create(usuario=self.edu, lugar=self.bar_perto, nota=2, ocasiao="amigos", visitado_em=segunda)
         horario = self.quando(quando="2026-11-30").data["resultados"][0]["horario"]
-        self.assertEqual(horario, {"estado": "visto", "texto": "", "visitas": 1})
+        self.assertEqual(horario, {"estado": "visto", "texto": "", "visitas": 3})
         # numa quarta não há prova
         self.assertEqual(self.quando(quando="2026-12-02").data["resultados"][0]["horario"]["estado"], "sem_info")
 
@@ -237,6 +250,14 @@ class SugestoesTests(Base):
         self.assertIsNone(self.quando().data["resultados"][0]["horario"])
         self.assertEqual(self.sugerir(quando="amanhã").status_code, 400)
         self.assertEqual(self.sugerir(hora="20:00").status_code, 400)  # hora sozinha, sem data
+        for ruim in ("24:00", "9:99", "-1:30", "20:00:00", "20h"):
+            self.assertEqual(self.sugerir(quando="2026-11-30", hora=ruim).status_code, 400, ruim)
+        self.assertEqual(self.sugerir(quando="2026-11-30", hora="9:05").status_code, 200)
+
+    def test_madrugada_de_domingo_nao_abre_a_segunda(self):
+        self.bar_perto.horario = "Su 18:00-02:00"
+        self.bar_perto.save()
+        self.assertEqual(self.nomes(self.quando(quando="2026-11-30")), [])
 
     def test_tipo_traz_bar_sem_motivo_e_o_gosto_so_ordena(self):
         self.client.put("/api/me/preferencias/", {"tags": ["ao-ar-livre"]}, format="json")
@@ -297,12 +318,18 @@ class SugestoesTests(Base):
         apertado.save()
         r = self.sugerir(ocasiao="grupo")
         self.assertEqual(self.nomes(r)[:2], ["Bar do Centro", "Bar Apertado"])
-        self.client.force_authenticate(self.bia)
-        self.registrar(lugar_id=apertado.id, nota=5, tags=["animado"], ocasiao="grupo")
-        self.client.force_authenticate(self.ana)
+        # uma conta sozinha, com várias visitas, não infla o lugar
+        for _ in range(3):
+            Registro.objects.create(usuario=self.bia, lugar=apertado, nota=5, ocasiao="grupo")
         r = self.sugerir(ocasiao="grupo")
-        self.assertEqual(self.nomes(r)[0], "Bar Apertado")  # a visita boa em grupo pesa mais que o tamanho
-        self.assertEqual(r.data["resultados"][0]["grupo"]["visitas"], 1)
+        self.assertEqual(self.nomes(r)[:2], ["Bar do Centro", "Bar Apertado"])
+        self.assertEqual(r.data["resultados"][1]["grupo"]["visitas"], 0)
+        # três pessoas diferentes que gostaram: a prova pesa mais que o tamanho
+        for quem in (self.cris, self.edu):
+            Registro.objects.create(usuario=quem, lugar=apertado, nota=5, ocasiao="grupo")
+        r = self.sugerir(ocasiao="grupo")
+        self.assertEqual(self.nomes(r)[0], "Bar Apertado")
+        self.assertEqual(r.data["resultados"][0]["grupo"]["visitas"], 3)
 
     def test_salvo_ganha_destaque(self):
         self.client.put("/api/me/preferencias/", {"tags": ["silencioso"]}, format="json")

@@ -104,6 +104,15 @@ def interpretar(horario):
     return semana if viu_dia else None
 
 
+MADRUGADA_LONGA = 6 * 60  # virada da noite anterior que vai além das 06:00 conta como dia aberto
+
+
+def _virada(ontem):
+    """Fim do intervalo de ontem que passa da meia-noite e vai além das 06:00 (em minutos do dia), ou None."""
+    fins = [fim - 24 * 60 for _, fim in ontem if fim > 24 * 60 + MADRUGADA_LONGA]
+    return max(fins) if fins else None
+
+
 def estado(horario, data, hora=None):
     """'aberto', 'fechado' ou None (não sei). `data` é date; `hora` é minutos desde 00:00 ou None."""
     semana = interpretar(horario)
@@ -112,7 +121,9 @@ def estado(horario, data, hora=None):
     dia = data.weekday()
     ontem = semana[(dia - 1) % 7]
     if hora is None:
-        return "aberto" if semana[dia] or any(fim > 24 * 60 for _, fim in ontem) else "fechado"
+        # "Su 18:00-02:00" não abre a segunda: o resto da madrugada não conta como dia aberto. Só conta se a
+        # virada for até de manhã (MADRUGADA_LONGA), o que é raro.
+        return "aberto" if semana[dia] or _virada(ontem) else "fechado"
     if any(ini <= hora < fim for ini, fim in semana[dia]):
         return "aberto"
     if any(fim > 24 * 60 and hora + 24 * 60 < fim for _, fim in ontem):
@@ -128,9 +139,12 @@ def _hhmm(minutos):
 def texto_do_dia(horario, data):
     """'11:00 às 14:00 e 18:00 às 23:00', 'o dia todo', ou '' se fechado ou desconhecido."""
     semana = interpretar(horario)
-    if not semana or not semana[data.weekday()]:
+    if not semana:
         return ""
     partes = semana[data.weekday()]
+    if not partes:
+        virada = _virada(semana[(data.weekday() - 1) % 7])
+        return f"até {_hhmm(virada)}" if virada else ""
     if partes == [(0, 24 * 60)]:
         return "o dia todo"
     return " e ".join(f"{_hhmm(ini)} às {_hhmm(fim)}" for ini, fim in partes)

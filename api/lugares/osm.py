@@ -108,11 +108,13 @@ CATEGORIAS_DE_GRUPO = {"amenity=biergarten", "amenity=food_court", "amenity=nigh
 
 
 def capacidade(tags):
-    """capacity ou seats do OSM como número ("120", "~80", "100-150" -> 100). None se não der."""
+    """capacity ou seats do OSM como número ("120", "~80", "100-150" -> 100, "1.500" -> 1500). None se não der."""
     for chave in ("capacity", "seats", "capacity:persons"):
-        achado = re.search(r"\d+", tags.get(chave) or "")
-        if achado and 0 < int(achado.group()) < 100000:
-            return int(achado.group())
+        # separador de milhar ("1.500", "1,500", "1 500") só vale com grupos de três dígitos depois
+        achado = re.search(r"\d{1,3}(?:[.,\s]\d{3})+(?!\d)|\d+", tags.get(chave) or "")
+        numero = int(re.sub(r"\D", "", achado.group())) if achado else 0
+        if 0 < numero < 100000:
+            return numero
     return None
 
 

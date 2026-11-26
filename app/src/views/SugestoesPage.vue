@@ -209,9 +209,9 @@ interface Sugestao {
   /** motivo -> quantas pessoas o marcaram em visitas boas */
   comunidade: Record<string, number>
   salvo: boolean
-  /** Só vem com o filtro "quando". aberto: o horário do mapa confirma; visto: alguém já foi nesse dia da semana. */
+  /** Só vem com o filtro "quando". aberto: o horário do mapa confirma; visto: 3 ou mais pessoas já foram nesse dia da semana. */
   horario: { estado: 'aberto' | 'visto' | 'sem_info'; texto: string; visitas?: number } | null
-  /** Só vem na ocasião "evento ou grupo": capacidade do mapa e visitas boas registradas em grupo. */
+  /** Só vem na ocasião "evento ou grupo": capacidade do mapa e pessoas (3 ou mais) que gostaram de ir em grupo. */
   grupo: { capacidade: number | null; visitas: number } | null
 }
 interface Resposta {
@@ -334,10 +334,12 @@ function avisoHorario(s: Sugestao) {
   const h = s.horario
   if (!h || !quando.value) return ''
   const dia = diaDaSemana(quando.value)
-  if (h.estado === 'aberto') return h.texto === 'o dia todo' ? 'Aberto o dia todo nesse dia' : `Aberto nesse dia, ${h.texto}`
-  if (h.estado === 'visto') {
-    return h.visitas === 1 ? `Alguém já foi numa ${dia}` : `${h.visitas} pessoas já foram numa ${dia}`
+  if (h.estado === 'aberto') {
+    if (h.texto === 'o dia todo') return 'Aberto o dia todo nesse dia'
+    return h.texto ? `Aberto nesse dia, ${h.texto}` : 'Aberto nesse dia'
   }
+  // a prova só aparece a partir de 3 pessoas diferentes (como os motivos da comunidade)
+  if (h.estado === 'visto') return `${h.visitas} pessoas já foram numa ${dia}`
   return 'Sem horário no mapa: confirme antes de ir'
 }
 
@@ -348,7 +350,7 @@ function avisoGrupo(s: Sugestao) {
   const partes = []
   if (g.capacidade && g.capacidade >= 20) partes.push(`Cabem umas ${g.capacidade} pessoas`)
   else if (g.capacidade) partes.push(`Pequeno: umas ${g.capacidade} pessoas`)
-  if (g.visitas) partes.push(g.visitas === 1 ? 'Já recebeu um grupo e agradou' : `Já recebeu ${g.visitas} grupos e agradou`)
+  if (g.visitas) partes.push(`${g.visitas} pessoas fizeram encontro aqui e gostaram`)
   return partes.join('. ')
 }
 
