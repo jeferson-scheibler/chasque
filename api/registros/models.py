@@ -10,6 +10,7 @@ class Ocasiao(models.TextChoices):
     FAMILIA = "familia", "Família"
     AMIGOS = "amigos", "Amigos"
     TRABALHO = "trabalho", "Trabalho"
+    GRUPO = "grupo", "Evento ou grupo"
 
 
 class Registro(models.Model):

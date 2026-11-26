@@ -66,7 +66,7 @@ const NOMES_DAS_TAGS: Record<string, string> = {
   'cerveja-artesanal': 'cerveja artesanal', vegetariano: 'opções vegetarianas',
   'atendimento-atencioso': 'atendimento atencioso', rapido: 'rápido', 'aceita-pet': 'aceita pet',
   acessivel: 'acessível', 'bom-para-criancas': 'bom para crianças', 'cultura-local': 'cultura local',
-  'musica-ao-vivo': 'música ao vivo', 'produtor-local': 'produtor local',
+  'musica-ao-vivo': 'música ao vivo', 'cabe-grupo': 'cabe muita gente', 'produtor-local': 'produtor local',
 }
 
 export function nomeDaTag(slug: string): string {

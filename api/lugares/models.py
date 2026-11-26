@@ -59,6 +59,8 @@ class Lugar(models.Model):
     # opening_hours do OSM, como veio (ex.: "Mo-Fr 08:00-18:00; Sa 09:00-13:00"). Vazio = não se sabe.
     horario = models.CharField(max_length=300, blank=True)
     telefone = models.CharField(max_length=60, blank=True)
+    # capacity (ou seats) do OSM: quantas pessoas cabem. Quase nunca vem preenchido.
+    capacidade = models.PositiveIntegerField(null=True, blank=True)
     # True quando a posição é só o centro da cidade (lugar criado sem localização exata).
     aproximado = models.BooleanField(default=False)
     verificado = models.BooleanField(default=False)

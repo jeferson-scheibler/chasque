@@ -138,6 +138,7 @@ class SugestoesView(APIView):
                     "comunidade": r["comunidade"],
                     "salvo": r["salvo"],
                     "horario": r["horario"],
+                    "grupo": r["grupo"],
                 }
                 for r in resultados
             ],

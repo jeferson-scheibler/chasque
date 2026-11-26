@@ -121,11 +121,14 @@
       <template v-else>
         <!-- A melhor combinação: o único destaque da tela -->
         <article class="destaque">
-          <p class="destaque__rotulo">{{ tipo && !primeira.combina.length ? 'A mais perto de você' : 'A que mais combina com você' }}</p>
+          <p class="destaque__rotulo">{{ tipo && !primeira.combina.length ? 'A mais perto de você' : ocasiao === 'grupo' ? 'A que mais serve para o grupo' : 'A que mais combina com você' }}</p>
           <h2>{{ primeira.lugar.nome }}</h2>
           <p class="destaque__meta">{{ metaDo(primeira) }}</p>
           <p v-if="avisoHorario(primeira)" class="horario" :class="`horario--${primeira.horario?.estado}`">
             <ion-icon :icon="timeOutline" aria-hidden="true" />{{ avisoHorario(primeira) }}
+          </p>
+          <p v-if="avisoGrupo(primeira)" class="horario">
+            <ion-icon :icon="peopleCircleOutline" aria-hidden="true" />{{ avisoGrupo(primeira) }}
           </p>
           <p class="destaque__combina">
             <span v-for="slug in primeira.combina" :key="slug">
@@ -160,6 +163,9 @@
                 <span v-if="avisoHorario(s)" class="horario" :class="`horario--${s.horario?.estado}`">
                   <ion-icon :icon="timeOutline" aria-hidden="true" />{{ avisoHorario(s) }}
                 </span>
+                <span v-if="avisoGrupo(s)" class="horario">
+                  <ion-icon :icon="peopleCircleOutline" aria-hidden="true" />{{ avisoGrupo(s) }}
+                </span>
                 <span v-if="s.combina.length" class="combina">Combina com {{ listaDeMotivos(s.combina) }}</span>
                 <span v-if="pessoas(s)" class="pessoas">
                   <ion-icon :icon="peopleOutline" aria-hidden="true" />{{ textoPessoas(s) }}
@@ -183,7 +189,7 @@ import {
   actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
   onIonViewWillEnter, type RefresherCustomEvent,
 } from '@ionic/vue'
-import { calendarOutline, locationOutline, navigateOutline, peopleOutline, timeOutline } from 'ionicons/icons'
+import { calendarOutline, locationOutline, navigateOutline, peopleCircleOutline, peopleOutline, timeOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EscolherCidade from '@/components/EscolherCidade.vue'
@@ -204,6 +210,8 @@ interface Sugestao {
   salvo: boolean
   /** Só vem com o filtro "quando". aberto: o horário do mapa confirma; visto: alguém já foi nesse dia da semana. */
   horario: { estado: 'aberto' | 'visto' | 'sem_info'; texto: string; visitas?: number } | null
+  /** Só vem na ocasião "evento ou grupo": capacidade do mapa e visitas boas registradas em grupo. */
+  grupo: { capacidade: number | null; visitas: number } | null
 }
 interface Resposta {
   origem: { tipo: 'localizacao' | 'cidade' | 'ultima_visita'; nome: string; cidade_id: number | null } | null
@@ -218,6 +226,7 @@ const OCASIOES = [
   { valor: 'familia', rotulo: 'Família' },
   { valor: 'amigos', rotulo: 'Amigos' },
   { valor: 'trabalho', rotulo: 'Trabalho' },
+  { valor: 'grupo', rotulo: 'Evento ou grupo' },
 ]
 // tipo de lugar: com um escolhido entram todos daquele tipo, e o gosto só ordena
 const TIPOS = [
@@ -322,6 +331,17 @@ function avisoHorario(s: Sugestao) {
     return h.visitas === 1 ? `Alguém já foi numa ${dia}` : `${h.visitas} pessoas já foram numa ${dia}`
   }
   return 'Sem horário no mapa: confirme antes de ir'
+}
+
+/** Frase sobre o tamanho do lugar, na ocasião "evento ou grupo". */
+function avisoGrupo(s: Sugestao) {
+  const g = s.grupo
+  if (!g) return ''
+  const partes = []
+  if (g.capacidade && g.capacidade >= 20) partes.push(`Cabem umas ${g.capacidade} pessoas`)
+  else if (g.capacidade) partes.push(`Pequeno: umas ${g.capacidade} pessoas`)
+  if (g.visitas) partes.push(g.visitas === 1 ? 'Já recebeu um grupo e agradou' : `Já recebeu ${g.visitas} grupos e agradou`)
+  return partes.join('. ')
 }
 
 function distancia(m: number | null) {

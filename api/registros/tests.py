@@ -126,7 +126,7 @@ class IntegracaoTests(Base):
     def test_motivos_disponiveis(self):
         r = self.client.get("/api/tags/")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.data), 27)
+        self.assertEqual(len(r.data), 28)
         cafe = next(t for t in r.data if t["slug"] == "cafe-colonial")
         self.assertEqual((cafe["nome"], cafe["grupo_nome"]), ("Café colonial", "Comida e bebida"))
 
@@ -272,6 +272,37 @@ class SugestoesTests(Base):
         self.assertEqual(casal[0], "Casa da Cuca")
         self.assertEqual(amigos[0], "Bar do Centro")
         self.assertEqual(self.sugerir(ocasiao="festa").status_code, 400)
+
+    def test_grupo_prefere_quem_cabe_muita_gente_mesmo_sem_gosto(self):
+        salao = self.lugar("Salão do Clube", -51.963, -29.468, ["cabe-grupo"])
+        salao.capacidade = 200
+        salao.save()
+        cervejaria = self.lugar("Cervejaria Grande", -51.964, -29.468, ["cabe-grupo", "ao-ar-livre"])
+        self.lugar("Bistrô Pequeno", -51.962, -29.468, ["aconchegante", "silencioso"])
+        self.assertEqual(self.nomes(self.sugerir()), [])  # sem gosto e sem ocasião, nada
+        r = self.sugerir(ocasiao="grupo")
+        nomes = self.nomes(r)
+        self.assertEqual(nomes[:2], ["Salão do Clube", "Cervejaria Grande"])  # capacidade conhecida vale mais
+        self.assertNotIn("Bistrô Pequeno", nomes)
+        self.assertIn("Bar do Centro", nomes)  # animado e música ao vivo ajudam
+        self.assertEqual(r.data["resultados"][0]["grupo"], {"capacidade": 200, "visitas": 0})
+        self.assertIn("cabe-grupo", r.data["resultados"][0]["combina"])
+        cervejaria.categoria = "amenity=bar"
+        cervejaria.save()
+        self.assertIsNone(self.sugerir(tipo="bar").data["resultados"][0]["grupo"])  # fora do grupo: sem o campo
+
+    def test_grupo_lugar_pequeno_vale_metade_e_visita_em_grupo_conta(self):
+        apertado = self.lugar("Bar Apertado", -51.9618, -29.4670, ["animado", "musica-ao-vivo"])
+        apertado.capacidade = 12
+        apertado.save()
+        r = self.sugerir(ocasiao="grupo")
+        self.assertEqual(self.nomes(r)[:2], ["Bar do Centro", "Bar Apertado"])
+        self.client.force_authenticate(self.bia)
+        self.registrar(lugar_id=apertado.id, nota=5, tags=["animado"], ocasiao="grupo")
+        self.client.force_authenticate(self.ana)
+        r = self.sugerir(ocasiao="grupo")
+        self.assertEqual(self.nomes(r)[0], "Bar Apertado")  # a visita boa em grupo pesa mais que o tamanho
+        self.assertEqual(r.data["resultados"][0]["grupo"]["visitas"], 1)
 
     def test_salvo_ganha_destaque(self):
         self.client.put("/api/me/preferencias/", {"tags": ["silencioso"]}, format="json")

@@ -28,7 +28,7 @@ export interface Salvo {
   criado_em: string
 }
 
-export type Ocasiao = 'sozinho' | 'casal' | 'familia' | 'amigos' | 'trabalho'
+export type Ocasiao = 'sozinho' | 'casal' | 'familia' | 'amigos' | 'trabalho' | 'grupo'
 
 export interface Registro {
   id: number

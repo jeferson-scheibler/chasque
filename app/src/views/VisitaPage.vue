@@ -115,14 +115,14 @@ import {
   alertController, IonContent, IonFooter, IonIcon, IonPage, IonSpinner, toastController,
 } from '@ionic/vue'
 import {
-  briefcaseOutline, heartOutline, homeOutline, lockClosedOutline, peopleOutline, personOutline, trashOutline,
+  briefcaseOutline, heartOutline, homeOutline, lockClosedOutline, peopleCircleOutline, peopleOutline, personOutline, trashOutline,
 } from 'ionicons/icons'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BuscaLugar from '@/components/BuscaLugar.vue'
 import Escolhas, { type Opcao } from '@/components/Escolhas.vue'
 import Faixa from '@/components/Faixa.vue'
-import Mascote from '@/components/Mascote.vue'
+import Mascote, { precarregarMascote } from '@/components/Mascote.vue'
 import Sois from '@/components/Sois.vue'
 import { iconeDaCategoria } from '@/categorias'
 import { api, ErroApi, mensagemDe } from '@/services/api'
@@ -135,6 +135,7 @@ const OCASIOES: Opcao[] = [
   { valor: 'familia', rotulo: 'Família', icone: homeOutline },
   { valor: 'amigos', rotulo: 'Amigos', icone: peopleOutline },
   { valor: 'trabalho', rotulo: 'Trabalho', icone: briefcaseOutline },
+  { valor: 'grupo', rotulo: 'Evento ou grupo', icone: peopleCircleOutline },
 ]
 const VISIBILIDADE: Opcao[] = [
   { valor: 'privado', rotulo: 'Só eu', icone: lockClosedOutline },
@@ -320,7 +321,10 @@ async function apagar() {
   }
 }
 
-onMounted(carregar)
+onMounted(() => {
+  carregar()
+  precarregarMascote('aprovando') // a comemoração depois de salvar já aparece desenhada
+})
 </script>
 
 <style scoped>

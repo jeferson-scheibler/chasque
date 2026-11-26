@@ -70,7 +70,7 @@ import { useMotivos } from '@/stores/motivos'
 import type { Pagina, Registro } from '@/types'
 
 const OCASIAO: Record<string, string> = {
-  sozinho: 'sozinho', casal: 'em casal', familia: 'com a família', amigos: 'com amigos', trabalho: 'a trabalho',
+  sozinho: 'sozinho', casal: 'em casal', familia: 'com a família', amigos: 'com amigos', trabalho: 'a trabalho', grupo: 'em grupo',
 }
 
 const motivos = useMotivos()

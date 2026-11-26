@@ -86,9 +86,10 @@ const OCASIOES = [
   { valor: 'familia', rotulo: 'Família' },
   { valor: 'amigos', rotulo: 'Amigos' },
   { valor: 'trabalho', rotulo: 'Trabalho' },
+  { valor: 'grupo', rotulo: 'Evento ou grupo' },
 ]
 const COM_QUEM: Record<string, string> = {
-  sozinho: 'sozinho', casal: 'em casal', familia: 'com a família', amigos: 'com amigos', trabalho: 'a trabalho',
+  sozinho: 'sozinho', casal: 'em casal', familia: 'com a família', amigos: 'com amigos', trabalho: 'a trabalho', grupo: 'em grupo',
 }
 
 const route = useRoute()

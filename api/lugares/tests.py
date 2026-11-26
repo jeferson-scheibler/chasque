@@ -47,6 +47,15 @@ class ClassificacaoTests(TestCase):
         tags = osm.tags_iniciais({"cuisine": "barbecue;regional", "wheelchair": "yes", "dog": "yes"}, "amenity=restaurant")
         self.assertEqual(tags, {"churrasco", "comida-caseira", "acessivel", "aceita-pet"})
         self.assertEqual(osm.tags_iniciais({}, "amenity=restaurant"), set())
+        self.assertEqual(osm.tags_iniciais({"capacity": "120"}, "amenity=restaurant"), {"cabe-grupo"})
+        self.assertEqual(osm.tags_iniciais({"seats": "25"}, "amenity=restaurant"), set())
+        self.assertEqual(osm.tags_iniciais({}, "amenity=biergarten"), {"ao-ar-livre", "cabe-grupo"})
+
+    def test_capacidade(self):
+        self.assertEqual(osm.capacidade({"capacity": "~80"}), 80)
+        self.assertEqual(osm.capacidade({"seats": "100-150"}), 100)
+        self.assertIsNone(osm.capacidade({"capacity": "muita"}))
+        self.assertIsNone(osm.capacidade({}))
 
     def test_endereco(self):
         self.assertEqual(osm.endereco({"addr:street": "Rua A", "addr:housenumber": "5"}), "Rua A, 5")

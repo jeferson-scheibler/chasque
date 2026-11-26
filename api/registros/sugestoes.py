@@ -22,6 +22,12 @@ Regra do MVP, explicável em uma frase: cada lugar soma o peso que a pessoa dá 
   ou não motivos: o gosto só ordena. Sem isso, um bar sem nenhum motivo no mapa (a maioria) nunca apareceria.
   Nesse modo os já visitados também entram: para marcar um encontro, o bar de sempre serve.
 
+- Na ocasião "evento ou grupo" o que um encontro grande pede soma ao gosto da pessoa: "cabe muita gente"
+  (motivo que vem da capacidade no OSM, do tipo de lugar ou de quem já foi) pesa bastante; área aberta, música
+  e ambiente animado ajudam; silencioso e aconchegante (que costuma ser pequeno) descontam. Capacidade
+  conhecida soma mais quanto maior, e lugar com menos de 20 lugares vale metade. Visitas boas registradas
+  como "evento ou grupo" no lugar (de qualquer pessoa, só a contagem) contam como prova.
+
 Cada resultado leva os motivos que mais pesaram ("combina com"), para a pessoa entender a sugestão.
 """
 
@@ -60,6 +66,15 @@ TIPOS = {
     "passeio": ["leisure=park", "tourism=viewpoint", "natural=waterfall", "waterway=waterfall", "tourism=attraction",
                 "tourism=picnic_site", "leisure=garden", "leisure=nature_reserve"],
 }
+# o que um evento ou grupo pede, somado ao gosto da pessoa nessa ocasião
+GRUPO = "grupo"
+PESOS_DE_GRUPO = {"cabe-grupo": 1.5, "ao-ar-livre": 0.4, "musica-ao-vivo": 0.3, "animado": 0.3, "churrasco": 0.2,
+                  "silencioso": -0.4, "aconchegante": -0.2}
+CAPACIDADE_CHEIA = 150  # a partir daqui o bônus de capacidade não cresce mais
+BONUS_CAPACIDADE = 0.6
+CAPACIDADE_PEQUENA = 20
+BONUS_VISITA_EM_GRUPO = 0.5
+MAXIMO_VISITAS_EM_GRUPO = 3
 POR_CATEGORIA_NO_TOPO = 2
 TOPO = 10
 
@@ -142,6 +157,9 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
     """`quando` é um date (ou None), `hora` os minutos desde 00:00 (ou None = qualquer hora) e `tipo` uma
     chave de TIPOS (ou "" = pelo gosto)."""
     pesos = pesos_da_pessoa(usuario, ocasiao)
+    if ocasiao == GRUPO:
+        for slug, peso in PESOS_DE_GRUPO.items():
+            pesos[slug] = pesos.get(slug, 0) + peso
     positivos = [slug for slug, peso in pesos.items() if peso > 0]
     if origem is None or (not positivos and not tipo):
         return []
@@ -172,6 +190,11 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
         pontos = sum(valor(s) for s in slugs) + (BASE_DO_TIPO if tipo else 0)
         if lugar.id in salvos:
             pontos += BONUS_SALVO
+        if ocasiao == GRUPO and lugar.capacidade:
+            if lugar.capacidade < CAPACIDADE_PEQUENA:
+                pontos *= 0.5
+            else:
+                pontos += BONUS_CAPACIDADE * min(lugar.capacidade, CAPACIDADE_CHEIA) / CAPACIDADE_CHEIA
         if pontos <= 0:
             continue
         horario = None
@@ -191,7 +214,19 @@ def sugerir(usuario, origem, ocasiao="", raio_km=RAIO_KM, limite=LIMITE, quando=
             "comunidade": {s: comunidade[s] for s in combina if s in comunidade},
             "salvo": lugar.id in salvos,
             "horario": horario,
+            "grupo": {"capacidade": lugar.capacidade, "visitas": 0} if ocasiao == GRUPO else None,
         })
+
+    if ocasiao == GRUPO:
+        em_grupo = Counter(
+            Registro.objects.filter(lugar_id__in=[r["lugar"].id for r in resultados], ocasiao=GRUPO, nota__gte=4)
+            .values_list("lugar_id", flat=True)
+        )
+        for r in resultados:
+            n = em_grupo.get(r["lugar"].id, 0)
+            if n:
+                r["grupo"]["visitas"] = n
+                r["pontos"] = round(r["pontos"] + BONUS_VISITA_EM_GRUPO * min(n, MAXIMO_VISITAS_EM_GRUPO), 4)
 
     if quando:
         sem_info = [r for r in resultados if r["horario"]["estado"] == "sem_info"]

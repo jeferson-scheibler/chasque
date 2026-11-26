@@ -9,6 +9,7 @@ precisa aparecer onde os lugares são mostrados.
 
 import json
 import math
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -100,6 +101,21 @@ def _sim(tags, chave):
     return tags.get(chave, "").lower() in ("yes", "only", "designated")
 
 
+# a partir de quantas pessoas o lugar "cabe muita gente"
+CAPACIDADE_DE_GRUPO = 40
+# tipos que costumam ter salão, mesas compridas ou área aberta
+CATEGORIAS_DE_GRUPO = {"amenity=biergarten", "amenity=food_court", "amenity=nightclub", "craft=brewery"}
+
+
+def capacidade(tags):
+    """capacity ou seats do OSM como número ("120", "~80", "100-150" -> 100). None se não der."""
+    for chave in ("capacity", "seats", "capacity:persons"):
+        achado = re.search(r"\d+", tags.get(chave) or "")
+        if achado and 0 < int(achado.group()) < 100000:
+            return int(achado.group())
+    return None
+
+
 def tags_iniciais(tags, categoria):
     """Motivos que dá para deduzir dos dados do OSM. Conservador de propósito."""
     chave, valor = categoria.split("=", 1)
@@ -144,6 +160,8 @@ def tags_iniciais(tags, categoria):
         slugs.add("musica-ao-vivo")
     if _sim(tags, "outdoor_seating"):
         slugs.add("ao-ar-livre")
+    if categoria in CATEGORIAS_DE_GRUPO or (capacidade(tags) or 0) >= CAPACIDADE_DE_GRUPO:
+        slugs.add("cabe-grupo")
     return slugs
 
 
@@ -338,6 +356,7 @@ def importar(features, progresso=None):
                 "cidade": (tags.get("addr:city") or (proxima.nome if proxima else ""))[:120],
                 "horario": (tags.get("opening_hours") or "").strip()[:300],
                 "telefone": (tags.get("phone") or tags.get("contact:phone") or "").split(";")[0].strip()[:60],
+                "capacidade": capacidade(tags),
                 "aproximado": False,
             },
         )

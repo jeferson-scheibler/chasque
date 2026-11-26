@@ -11,8 +11,11 @@ pelo potrace, com variável CSS própria (o tema muda as variáveis, não o dese
   creme     focinho, pelego, brilho do olho, cabresto
   escuro    lenço, cincha, bolsa, grama, riscos de som, interrogação e check
 
+Para pesar pouco: coordenadas inteiras e relativas (o desenho tem ~450 px de altura e aparece com menos de 250,
+então meio pixel não se vê), e cada pose num arquivo próprio, que a tela só baixa quando mostra aquela pose.
+
 Uso (na imagem chasque-ferramentas, que tem potrace, numpy e scipy):
-  python marca/fonte/gerar_mascote.py               gera app/src/components/Mascote.vue
+  python marca/fonte/gerar_mascote.py               gera app/src/components/Mascote.vue e mascote/<pose>.ts
   python marca/fonte/gerar_mascote.py --previa DIR  também grava folhas de prévia (claro e escuro)
 """
 
@@ -106,14 +109,39 @@ def reescalar(d, altura):
             nums.append(float(t))
     emitir()
     # potrace usa y para cima: o primeiro M absoluto já vem invertido acima; relativos sobem com -dy
-    return re.sub(r"(\d)\.0(?=\D)", r"\1", "".join(saida))
+    return compactar("".join(saida))
 
 
+def compactar(d):
+    """Caminho absoluto (M, L, C, Z; um segmento por letra) -> relativo, com inteiros e sem separador sobrando:
+    "m12 30c4-2 8 0 9 5z". Arredonda as posições absolutas e só depois tira a diferença: o erro não se acumula."""
+    saida, atual, inicio, ultimo = [], (0, 0), (0, 0), None
+    for cmd, numeros in re.findall(r"([MLCZ])([^MLCZ]*)", d):
+        if cmd == "Z":
+            saida.append("z")
+            atual, ultimo = inicio, None
+            continue
+        pts = [round(float(n)) for n in re.findall(r"-?\d+(?:\.\d+)?", numeros)]
+        # num C os três pares são relativos ao ponto de antes do segmento
+        rel = [v - atual[i % 2] for i, v in enumerate(pts)]
+        texto = "".join(("" if j == 0 or v < 0 else " ") + str(v) for j, v in enumerate(rel))
+        letra = cmd.lower()
+        if letra == ultimo:  # mesma letra de antes: dá para omitir, separando o número se precisar
+            saida.append(texto if texto.startswith("-") else " " + texto)
+        else:
+            saida.append(letra + texto)
+        atual = (pts[-2], pts[-1])
+        if letra == "m":
+            inicio, ultimo = atual, "l"  # depois de um m, pares soltos já valem como l
+        else:
+            ultimo = letra
+    return "".join(saida)
 
 
 RAIZ = pathlib.Path(__file__).resolve().parents[2]
 REFERENCIA = RAIZ / "marca/original/Folha de Adesivos de Pôneis Fofos.png"
 DESTINO = RAIZ / "app/src/components/Mascote.vue"
+PASTA_POSES = RAIZ / "app/src/components/mascote"
 
 NOMES = ["trote", "parado", "aprovando", "duvida", "espiando", "empinando", "relinchando"]
 
@@ -196,36 +224,56 @@ def previa(poses, pasta):
 
 
 def componente(poses):
-    entradas = []
-    for nome, (cam, tam) in poses.items():
-        w, h, corpo = svg_pose(cam, tam)
-        entradas.append(f"  {nome}: {{ w: {w}, h: {h}, svg: `{corpo}` }},")
+    tamanhos = "\n".join(f"  {nome}: [{tam[0]}, {tam[1]}]," for nome, (_, tam) in poses.items())
+    carregar = "\n".join(f"  {nome}: () => import('./mascote/{nome}')," for nome in poses)
     tipos = " | ".join(f"'{n}'" for n in poses)
     regras = "\n".join(f".mascote :deep(.m-{k}) {{ fill: var(--m-{k}); }}" for k in ORDEM)
     return f"""<!-- gerado por marca/fonte/gerar_mascote.py: não editar à mão -->
 <template>
   <svg
     class="mascote"
-    :viewBox="`0 0 ${{pose.w}} ${{pose.h}}`"
+    :viewBox="`0 0 ${{TAMANHOS[pose][0]}} ${{TAMANHOS[pose][1]}}`"
     :role="rotulo ? 'img' : undefined"
     :aria-label="rotulo"
     :aria-hidden="rotulo ? undefined : 'true'"
-    v-html="pose.svg"
+    v-html="desenho"
   />
 </template>
 
-<script setup lang="ts">
-import {{ computed }} from 'vue'
-
+<script lang="ts">
 export type PoseMascote = {tipos}
+
+// o tamanho vem junto (a tela já reserva o espaço); o desenho de cada pose é baixado só quando aparece
+const TAMANHOS: Record<PoseMascote, [number, number]> = {{
+{tamanhos}
+}}
+const CARREGAR: Record<PoseMascote, () => Promise<{{ default: string }}>> = {{
+{carregar}
+}}
+const baixados = new Map<PoseMascote, string>()
+
+/** Baixa a pose antes de ela aparecer (ex.: a comemoração depois de salvar). */
+export async function precarregarMascote(pose: PoseMascote) {{
+  if (!baixados.has(pose)) baixados.set(pose, (await CARREGAR[pose]()).default)
+  return baixados.get(pose) as string
+}}
+</script>
+
+<script setup lang="ts">
+import {{ ref, watch }} from 'vue'
 
 const props = defineProps<{{ pose: PoseMascote; rotulo?: string }}>()
 
-const POSES: Record<PoseMascote, {{ w: number; h: number; svg: string }}> = {{
-{chr(10).join(entradas)}
-}}
-
-const pose = computed(() => POSES[props.pose])
+const desenho = ref(baixados.get(props.pose) ?? '')
+watch(
+  () => props.pose,
+  async (pose) => {{
+    desenho.value = baixados.get(pose) ?? ''
+    const svg = await precarregarMascote(pose)
+    if (props.pose === pose) desenho.value = svg
+  }},
+  {{ immediate: true }},
+)
 </script>
 
 <style scoped>
@@ -253,6 +301,11 @@ const pose = computed(() => POSES[props.pose])
 """
 
 
+def arquivo_da_pose(cam, tam):
+    _, _, corpo = svg_pose(cam, tam)
+    return f"// gerado por marca/fonte/gerar_mascote.py: não editar à mão\nexport default `{corpo}`\n"
+
+
 def main():
     arr = np.asarray(Image.open(REFERENCIA).convert("RGBA"))
     alfa = arr[:, :, 3] > 128
@@ -261,7 +314,12 @@ def main():
     if "--previa" in sys.argv:
         previa(poses, pathlib.Path(sys.argv[sys.argv.index("--previa") + 1]))
     DESTINO.write_text(componente(poses))
-    print(f"{DESTINO} ({DESTINO.stat().st_size // 1024} KB)")
+    PASTA_POSES.mkdir(exist_ok=True)
+    for nome, (cam, tam) in poses.items():
+        destino = PASTA_POSES / f"{nome}.ts"
+        destino.write_text(arquivo_da_pose(cam, tam))
+        print(f"{destino.name}: {destino.stat().st_size / 1024:.1f} KB")
+    print(f"{DESTINO} ({DESTINO.stat().st_size / 1024:.1f} KB)")
 
 
 if __name__ == "__main__":

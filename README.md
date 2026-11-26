@@ -78,7 +78,7 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET | `/api/tags/` | Motivos que dá para marcar numa visita, com o grupo (ambiente, preço, comida...). |
 | GET, POST | `/api/registros/` | Visitas da pessoa (`?q=` busca no motivo, no lugar e na cidade) ou registra uma (`lugar_id`, `nota` 1 a 5, `ocasiao`, `tags`, `motivo`, `visitado_em`). |
 | GET, PATCH, DELETE | `/api/registros/<id>/` | Ver, editar ou apagar uma visita. |
-| GET | `/api/sugestoes/` | Lugares pelo gosto da pessoa (`?lat=&lng=` ou `?cidade_id=`, e `?ocasiao=`). Sem local, usa a cidade da pessoa ou a última visita. |
+| GET | `/api/sugestoes/` | Lugares pelo gosto da pessoa (`?lat=&lng=` ou `?cidade_id=`, `?ocasiao=`, `?tipo=`, `?quando=&hora=`). Sem local, usa a cidade da pessoa ou a última visita. |
 | GET, PUT | `/api/me/preferencias/` | Gostos escolhidos antes das visitas (`tags`). |
 | GET | `/api/mapa/` | Os lugares da pessoa em GeoJSON (salvos e visitados, sem repetir). |
 | GET | `/api/pessoas/` | Convite, pedidos recebidos e enviados, quem a pessoa segue e quem a segue. |
@@ -235,6 +235,11 @@ transparente; recorte por pose, separação pela paleta, suavização e potrace)
 
 `--previa PASTA` grava também as folhas claro e escuro em SVG.
 
+Para pesar pouco, o gerador grava cada pose num arquivo próprio (`src/components/mascote/<pose>.ts`, com
+coordenadas inteiras e relativas) e o `Mascote.vue` só guarda os tamanhos: a tela reserva o espaço na hora e
+baixa o desenho da pose que mostra, de 2 a 5 KB comprimido (antes, as 7 poses juntas davam 81 KB).
+`precarregarMascote(pose)` baixa antes, como faz a tela de visita com a comemoração.
+
 ## Motivos da comunidade
 
 As visitas também descrevem os lugares para todo mundo, sem expor ninguém (`registros/comunidade.py`):
@@ -265,6 +270,25 @@ Cada lugar num raio de 30 km soma o peso que a pessoa dá aos motivos que ele te
   um bar quase nunca apareceria: só 6% dos bares do RS têm algum motivo no OpenStreetMap.
 
 Cada sugestão diz com o que combina. Sem visitas nem gostos, a tela pede os primeiros gostos.
+
+### Evento ou grupo
+
+A ocasião "Evento ou grupo" (`?ocasiao=grupo`; também dá para registrar visitas assim) procura lugar para muita
+gente. O que um encontro grande pede soma ao gosto da pessoa:
+
+- o motivo "Cabe muita gente" (`cabe-grupo`) pesa 1,5. Vem do OpenStreetMap quando o lugar tem `capacity` ou
+  `seats` de 40 ou mais, ou é cervejaria, biergarten, praça de alimentação ou casa noturna, e das visitas, como
+  qualquer motivo;
+- ao ar livre (+0,4), música ao vivo e animado (+0,3) e churrasco (+0,2) ajudam; silencioso (-0,4) e
+  aconchegante (-0,2), que costuma ser pequeno, descontam;
+- com capacidade conhecida, soma até +0,6 (cheio a partir de 150 pessoas); com menos de 20, vale metade;
+- cada visita de 4 ou 5 sóis registrada como evento ou grupo no lugar soma +0,5 (até 3), de qualquer pessoa e
+  só pela contagem.
+
+Cada resultado volta com `grupo: {capacidade, visitas}` e a tela mostra "Cabem umas 120 pessoas" ou "Já recebeu
+2 grupos e agradou". A capacidade quase nunca está no OSM (cerca de 170 bares e restaurantes em todo o Sul):
+o resto vem do tipo de lugar e das visitas. Junto com o tipo "Bar" e o dia, responde "bar para 30 pessoas
+aberto na segunda".
 
 ### Quando: dia e horário
 
