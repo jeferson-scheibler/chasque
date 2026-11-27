@@ -8,6 +8,8 @@ export interface Usuario {
   nome: string
   cidade_base: string
   contribuir_motivos: boolean
+  /** O texto dos links salvos vai para a IA ler o motivo (Gemini). */
+  usar_ia: boolean
   date_joined: string
 }
 
@@ -46,7 +48,7 @@ export const useSessao = defineStore('sessao', () => {
     usuario.value = r.usuario
   }
 
-  async function atualizar(dados: Partial<Pick<Usuario, 'nome' | 'cidade_base' | 'contribuir_motivos'>>) {
+  async function atualizar(dados: Partial<Pick<Usuario, 'nome' | 'cidade_base' | 'contribuir_motivos' | 'usar_ia'>>) {
     usuario.value = await api<Usuario>('/me/', { method: 'PATCH', json: dados })
   }
 

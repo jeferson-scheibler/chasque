@@ -4,20 +4,22 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from lugares.models import Lugar
+from lugares.models import Lugar, Tag
 from lugares.serializers import LugarSerializer
 from registros.models import Registro
 
 from . import instagram
 from .intencoes import marcar_pendente
-from .models import Salvo
-from .serializers import CompartilhamentoSerializer, SalvoSerializer
+from .models import Intencao, Salvo
+from .serializers import CompartilhamentoSerializer, IntencaoSerializer, SalvoSerializer
 
 
 def com_visita(salvos):
-    """Marca os salvos cujo lugar a pessoa já visitou (registrou visita)."""
+    """Marca os salvos cujo lugar a pessoa já visitou (registrou visita) e traz junto a intenção."""
     return salvos.annotate(
         visitado=Exists(Registro.objects.filter(usuario=OuterRef("usuario"), lugar=OuterRef("lugar")))
+    ).select_related("intencao__lugar_sugerido").prefetch_related(
+        "intencao__tags", "intencao__lugar_sugerido__tags", "intencao__lugar_sugerido__motivos_comunidade__tag"
     )
 
 
@@ -122,3 +124,24 @@ class SalvoView(generics.RetrieveUpdateDestroyAPIView):
         salvo = serializer.save()
         if salvo.texto != antes:
             marcar_pendente(salvo)
+
+
+class IntencaoView(APIView):
+    """PUT: a pessoa confirma ou corrige por que salvou o link. Depois disso, a IA não mexe mais nessa intenção.
+    Também serve para escrever o motivo à mão, sem a IA ligada."""
+
+    def put(self, request, pk):
+        salvo = generics.get_object_or_404(Salvo, pk=pk, usuario=request.user)
+        entrada = IntencaoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        dados = entrada.validated_data
+        with transaction.atomic():
+            intencao, _ = Intencao.objects.get_or_create(salvo=salvo)
+            intencao.frase = dados["frase"]
+            intencao.estado = Intencao.Estado.CONFIRMADA
+            intencao.save(update_fields=["frase", "estado", "atualizado_em"])
+            intencao.tags.set(Tag.objects.filter(slug__in=dados["tags"]))
+        salvo = com_visita(Salvo.objects.filter(pk=salvo.pk)).select_related("lugar").prefetch_related(
+            "lugar__tags", "lugar__motivos_comunidade__tag"
+        ).get()
+        return Response(SalvoSerializer(salvo).data)

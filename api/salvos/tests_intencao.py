@@ -266,6 +266,14 @@ class ApiTests(APITestCase):
         self.client.post("/api/salvos/", {"text": f"{LEGENDA} {self.reel}"}, format="json")
         self.assertFalse(Intencao.objects.exists())
 
+    def test_ligar_a_ia_poe_os_salvos_com_texto_na_fila(self):
+        Salvo.objects.create(usuario=self.ana, url="https://www.instagram.com/reel/AAAAAAA/", tipo="reel", texto=LEGENDA)
+        Salvo.objects.create(usuario=self.ana, url="https://www.instagram.com/reel/BBBBBBB/", tipo="reel")
+        self.ligar_ia()
+        self.assertEqual(Intencao.objects.filter(estado="pendente").count(), 1)
+        self.client.patch("/api/me/", {"nome": "Ana Maria"}, format="json")  # já ligada: não mexe de novo
+        self.assertEqual(Intencao.objects.count(), 1)
+
     def test_compartilhar_com_texto_entra_na_fila(self):
         self.ligar_ia()
         r = self.client.post("/api/salvos/", {"text": f"{LEGENDA} {self.reel}"}, format="json")
@@ -383,3 +391,108 @@ class AvaliarTests(TestCase):
         self.assertIn("Motivos: precisão 12%", texto)
         self.assertIn("Nome do lugar: 25% de acerto", texto)
         self.assertFalse(Intencao.objects.exists())
+
+
+class IntencaoApiTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.ana = Usuario.objects.create_user(email="ana@exemplo.com", password="x" * 12, nome="Ana", usar_ia=True)
+        self.bia = Usuario.objects.create_user(email="bia@exemplo.com", password="x" * 12, nome="Bia")
+        self.client.force_authenticate(self.ana)
+        self.forno = Lugar.objects.create(nome="Forno da Praça", ponto=Point(-51.96, -29.46), fonte="osm",
+                                          id_externo="node/1", cidade="Lajeado")
+        self.salvo = Salvo.objects.create(usuario=self.ana, url="https://www.instagram.com/reel/AAAAAAA/",
+                                          tipo="reel", texto=LEGENDA)
+
+    def url(self, salvo=None):
+        return f"/api/salvos/{(salvo or self.salvo).id}/"
+
+    def test_sem_intencao_vem_nulo(self):
+        self.assertIsNone(self.client.get(self.url()).data["intencao"])
+
+    def test_pendente_aparece_para_o_app_mostrar_que_esta_lendo(self):
+        intencoes.marcar_pendente(self.salvo)
+        self.assertEqual(self.client.get(self.url()).data["intencao"],
+                         {"estado": "pendente", "frase": "", "tags": [], "lugar_sugerido": None})
+
+    def test_pronta_traz_frase_motivos_e_lugar_sugerido(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        intencao = self.client.get(self.url()).data["intencao"]
+        self.assertEqual(intencao["estado"], "pronta")
+        self.assertEqual(intencao["frase"], "A pizza de fermentação natural")
+        self.assertEqual(sorted(intencao["tags"]), ["aconchegante", "comida-caseira"])
+        self.assertEqual(intencao["lugar_sugerido"]["nome"], "Forno da Praça")
+
+    def test_lugar_sugerido_some_depois_de_ligar_o_salvo(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        r = self.client.patch(self.url(), {"lugar_id": self.forno.id}, format="json")
+        self.assertIsNone(r.data["intencao"]["lugar_sugerido"])
+        self.assertEqual(r.data["intencao"]["frase"], "A pizza de fermentação natural")
+
+    def test_falhou_nao_aparece(self):
+        intencoes.marcar_pendente(self.salvo)
+        Intencao.objects.update(estado=Intencao.Estado.FALHOU)
+        self.assertIsNone(self.client.get(self.url()).data["intencao"])
+
+    def test_lista_traz_a_intencao(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        r = self.client.get("/api/salvos/")
+        self.assertEqual(r.data["results"][0]["intencao"]["estado"], "pronta")
+
+    def test_confirmar_corrige_e_trava_contra_a_ia(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        r = self.client.put(self.url() + "intencao/", {"frase": "  Pizza com a mãe  ", "tags": ["doces", "doces"]},
+                            format="json")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["intencao"]["estado"], "confirmada")
+        self.assertEqual((r.data["intencao"]["frase"], r.data["intencao"]["tags"]), ("Pizza com a mãe", ["doces"]))
+
+        self.client.patch(self.url(), {"texto": "Texto completamente novo"}, format="json")
+        self.assertEqual(Intencao.objects.get().estado, Intencao.Estado.CONFIRMADA)
+
+    def test_nao_e_isso_limpa_e_trava(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        r = self.client.put(self.url() + "intencao/", {"frase": "", "tags": []}, format="json")
+        intencao = r.data["intencao"]
+        self.assertEqual((intencao["estado"], intencao["frase"], intencao["tags"]), ("confirmada", "", []))
+        # recusar o motivo não recusa o lugar: a sugestão continua até a pessoa escolher um
+        self.assertEqual(intencao["lugar_sugerido"]["nome"], "Forno da Praça")
+
+    def test_escrever_o_motivo_a_mao_sem_ia(self):
+        self.ana.usar_ia = False
+        self.ana.save()
+        r = self.client.put(self.url() + "intencao/", {"frase": "Vista do pôr do sol", "tags": ["vista-bonita"]},
+                            format="json")
+        self.assertEqual(r.data["intencao"]["frase"], "Vista do pôr do sol")
+
+    def test_validacao(self):
+        casos = [
+            {"frase": "a" * 121, "tags": []},
+            {"frase": "Ok", "tags": ["inventado"]},
+            {"frase": "Ok", "tags": ["vinho", "arte", "doces", "natureza"]},
+            {"tags": []},
+        ]
+        for corpo in casos:
+            with self.subTest(corpo=corpo):
+                r = self.client.put(self.url() + "intencao/", corpo, format="json")
+                self.assertEqual(r.status_code, 400)
+        self.assertFalse(Intencao.objects.exists())
+
+    def test_salvo_de_outra_pessoa_nao_e_encontrado(self):
+        alheio = Salvo.objects.create(usuario=self.bia, url="https://www.instagram.com/reel/BBBBBBB/", tipo="reel")
+        r = self.client.put(self.url(alheio) + "intencao/", {"frase": "Oi", "tags": []}, format="json")
+        self.assertEqual(r.status_code, 404)
+
+    def test_exportacao_leva_a_intencao(self):
+        intencoes.marcar_pendente(self.salvo)
+        intencoes.processar(ClienteFalso())
+        r = self.client.get("/api/me/exportar/")
+        self.assertEqual(r.status_code, 200)
+        salvo = r.json()["salvos"][0] if hasattr(r, "json") else r.data["salvos"][0]
+        self.assertEqual(salvo["intencao"]["frase"], "A pizza de fermentação natural")
+        self.assertEqual(salvo["intencao"]["lugar_indicado"], "Forno da Praça")

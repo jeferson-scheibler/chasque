@@ -16,6 +16,15 @@ export interface Lugar {
   telefone: string
 }
 
+/** Por que a pessoa salvou o link: lido pela IA (pendente, pronta) ou confirmado por ela. */
+export interface Intencao {
+  estado: 'pendente' | 'pronta' | 'confirmada'
+  frase: string
+  tags: string[]
+  /** Lugar da base que o texto indica, quando não há dúvida. Some quando o salvo já tem lugar. */
+  lugar_sugerido: Lugar | null
+}
+
 export interface Salvo {
   id: number
   origem: 'instagram'
@@ -25,6 +34,7 @@ export interface Salvo {
   texto: string
   lugar: Lugar | null
   visitado: boolean
+  intencao: Intencao | null
   criado_em: string
   /** Só na resposta do POST: o link já estava na lista. */
   ja_salvo?: boolean

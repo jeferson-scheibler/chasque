@@ -53,6 +53,7 @@
             :titulo="trocando ? 'Qual é o lugar certo?' : `De qual lugar é esse ${salvo.tipo}?`"
             :sugestao="sugestao"
             :ignorar="trocando ? salvo.lugar?.id : null"
+            :sugerido="trocando ? null : salvo.intencao?.lugar_sugerido"
             @escolher="vincular"
           />
           <button v-if="trocando" type="button" class="botao botao--texto" @click="trocando = false">Cancelar</button>
@@ -99,6 +100,7 @@
 
         <section class="anotacao">
           <h2 class="secao-titulo">Por que quer ir</h2>
+          <intencao-salvo :salvo="salvo" @atualizado="salvo = $event" />
           <textarea
             v-model="texto"
             class="anotacao__papel"
@@ -128,6 +130,7 @@ import {
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Faixa from '@/components/Faixa.vue'
+import IntencaoSalvo from '@/components/IntencaoSalvo.vue'
 import QualLugar from '@/components/QualLugar.vue'
 import Vazio from '@/components/Vazio.vue'
 import { iconeDaCategoria, nomeDaTag } from '@/categorias'

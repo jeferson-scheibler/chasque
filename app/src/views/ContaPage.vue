@@ -50,6 +50,21 @@
           @ion-change="alternarContribuir($event.detail.checked)"
         />
       </label>
+      <label class="contribuir cartao-rs ler-motivos">
+        <span>
+          <strong>Ler por que salvei cada link</strong>
+          <small>
+            A IA do Google (Gemini) lê o texto dos seus links salvos e guarda o motivo em uma frase, para lembrar você
+            no dia do passeio. Seu nome e e-mail não vão junto. Nesta fase de testes, o Google pode usar esse texto
+            para melhorar os produtos dele.
+          </small>
+        </span>
+        <ion-toggle
+          :checked="sessao.usuario?.usar_ia ?? false"
+          aria-label="Ler por que salvei cada link"
+          @ion-change="alternarIa($event.detail.checked)"
+        />
+      </label>
 
       <h2 class="secao-titulo">Seus dados</h2>
       <p class="secao-apoio">Seus registros são privados. Você pode levar tudo com você ou apagar a conta.</p>
@@ -156,6 +171,15 @@ onIonViewWillEnter(async () => {
     // a entrada continua funcionando sem o resumo
   }
 })
+
+async function alternarIa(ligado: boolean) {
+  try {
+    await sessao.atualizar({ usar_ia: ligado })
+    await avisar(ligado ? 'O Chasque vai ler os textos dos seus links' : 'Os textos dos seus links não vão mais para a IA')
+  } catch {
+    await avisar('Não foi possível salvar.', 'danger')
+  }
+}
 
 async function alternarContribuir(ligado: boolean) {
   try {
@@ -269,6 +293,10 @@ async function excluir(senha: string) {
   align-items: center;
   margin: 4px 20px 0;
   padding: 22px 16px 14px;
+}
+
+.ler-motivos {
+  margin-top: 10px;
 }
 
 .contribuir strong {

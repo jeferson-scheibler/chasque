@@ -3,6 +3,18 @@
     <template v-if="!novo && (carregando || meus.length)">
       <h2 class="secao-titulo">{{ titulo }}</h2>
 
+      <div v-if="sugerido" class="qual__parece cartao-rs">
+        <span class="linha__icone"><ion-icon :icon="iconeDaCategoria(sugerido.categoria)" aria-hidden="true" /></span>
+        <span class="linha__texto">
+          <span class="qual__parece-rotulo">Pelo texto, parece ser</span>
+          <span class="linha__titulo">{{ sugerido.nome }}</span>
+          <span class="linha__meta">{{ resumoDoLugar(sugerido) || 'Lugar' }}</span>
+        </span>
+        <button type="button" class="botao botao--sol botao--compacto qual__esse-sim" @click="emit('escolher', sugerido)">
+          É esse
+        </button>
+      </div>
+
       <button type="button" class="qual__novo" @click="novo = true">
         <span class="qual__sol" aria-hidden="true"><ion-icon :icon="addOutline" /></span>
         <span class="linha__texto">
@@ -62,7 +74,7 @@ import { resumoDoLugar, type Lugar, type MeuLugar } from '@/types'
 
 const POUCOS = 5
 
-const props = defineProps<{ titulo: string; sugestao?: string; ignorar?: number | null }>()
+const props = defineProps<{ titulo: string; sugestao?: string; ignorar?: number | null; sugerido?: Lugar | null }>()
 const emit = defineEmits<{ escolher: [lugar: Lugar] }>()
 
 const meus = ref<MeuLugar[]>([])
@@ -229,6 +241,28 @@ onMounted(async () => {
 
 .qual__novo:active .qual__novo-seta {
   transform: translateX(4px);
+}
+
+/* o lugar que a IA achou no texto: a resposta pronta, antes das outras opções */
+.qual__parece {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 16px 0;
+  padding: 20px 12px 12px 14px;
+}
+
+.qual__parece-rotulo {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.78rem;
+  color: var(--chasque-tinta-suave);
+}
+
+.qual__esse-sim {
+  flex: none;
+  width: auto;
+  padding: 0 16px;
 }
 
 .qual__ou {

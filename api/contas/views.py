@@ -19,6 +19,25 @@ def _resposta_logada(request, usuario, codigo=status.HTTP_200_OK):
     return tokens.entregar(resposta, request, refresh)
 
 
+
+
+def _intencao_exportada(salvo):
+    """A intenção do salvo (lida pela IA ou escrita pela pessoa), para a exportação de dados."""
+    from salvos.models import Intencao
+
+    try:
+        intencao = salvo.intencao
+    except Intencao.DoesNotExist:
+        return None
+    return {
+        "estado": intencao.estado,
+        "frase": intencao.frase,
+        "tags": [t.slug for t in intencao.tags.all()],
+        "lugar_indicado": intencao.lugar_nome,
+        "cidade_indicada": intencao.lugar_cidade,
+        "modelo": intencao.modelo,
+        "lida_em": intencao.lida_em,
+    }
 class CadastroView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
@@ -106,7 +125,13 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         antes = serializer.instance.contribuir_motivos
+        ia_antes = serializer.instance.usar_ia
         usuario = serializer.save()
+        if usuario.usar_ia and not ia_antes:
+            # quem liga a leitura quer ver os links que já tem lidos também (até o limite do dia)
+            from salvos.intencoes import marcar_todos
+
+            marcar_todos(usuario)
         if usuario.contribuir_motivos != antes:
             # entra ou sai da soma anônima dos lugares que visitou
             from registros.comunidade import lugares_de, recalcular_motivos
@@ -178,8 +203,10 @@ class ExportarView(APIView):
                     "texto": s.texto,
                     "lugar": s.lugar.nome if s.lugar else None,
                     "criado_em": s.criado_em,
+                    "intencao": _intencao_exportada(s),
                 }
-                for s in Salvo.objects.filter(usuario=usuario).select_related("lugar")
+                for s in Salvo.objects.filter(usuario=usuario).select_related("lugar", "intencao")
+                .prefetch_related("intencao__tags")
             ],
             # o endereço secreto da agenda é da própria pessoa: vai junto, para ela poder levar para outro lugar
             "agenda": next(
