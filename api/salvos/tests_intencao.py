@@ -1,17 +1,20 @@
+import io
+import json
+import urllib.error
 from datetime import timedelta
 from unittest import mock
 
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from contas.models import Usuario
 from lugares.models import Lugar
 
-from . import ia, intencoes
+from . import gemini, ia, intencoes
 from .models import Intencao, Salvo
 
 LEGENDA = "Pizza de fermentação natural no Forno da Praça, em Lajeado! Ambiente aconchegante, vale cada fatia."
@@ -179,6 +182,15 @@ class ProcessarTests(Base):
         self.assertEqual(intencoes.processar(cliente), 0)
         self.assertEqual(len(cliente.entradas), 3)
 
+    def test_ia_indisponivel_para_o_lote_sem_gastar_tentativas(self):
+        for i in range(2):
+            intencoes.marcar_pendente(self.salvo(codigo=f"I{i:06d}"))
+        cliente = ClienteFalso(erro=ia.IAIndisponivel("HTTP 429"))
+        self.assertEqual(intencoes.processar(cliente), 0)
+        self.assertEqual(len(cliente.entradas), 1)
+        self.assertEqual(list(Intencao.objects.values_list("estado", "tentativas", "lida_em")),
+                         [("pendente", 0, None)] * 2)
+
     def test_quem_desligou_a_ia_sai_da_fila(self):
         intencoes.marcar_pendente(self.salvo())
         self.ana.usar_ia = False
@@ -272,4 +284,102 @@ class ApiTests(APITestCase):
         self.ligar_ia()
         r = self.client.post("/api/salvos/", {"text": self.reel}, format="json")
         self.client.patch(f"/api/salvos/{r.data['id']}/", {"lugar_id": None}, format="json")
+        self.assertFalse(Intencao.objects.exists())
+
+
+def resposta_gemini(conteudo, **extra):
+    """Corpo de um generateContent com o JSON dado como texto da resposta."""
+    texto = conteudo if isinstance(conteudo, str) else json.dumps(conteudo)
+    return {"candidates": [{"content": {"parts": [{"text": texto}]}, "finishReason": "STOP"}], **extra}
+
+
+class RespostaFalsa(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+class GeminiTests(TestCase):
+    entrada = ia.Entrada(tipo="reel", perfil="fornodapraca", texto=LEGENDA, cidade_base="Lajeado",
+                         motivos=[("aconchegante", "Aconchegante"), ("vinho", "Vinho")])
+
+    def ler(self, corpo=None, erro=None):
+        cliente = gemini.ClienteGemini(chave="chave-de-teste")
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            if erro:
+                urlopen.side_effect = erro
+            else:
+                urlopen.return_value = RespostaFalsa(json.dumps(corpo).encode())
+            leitura = cliente.ler(self.entrada)
+        return leitura, urlopen
+
+    def test_le_a_resposta_estruturada(self):
+        leitura, urlopen = self.ler(resposta_gemini({
+            "frase": "Pizza de fermentação natural", "tags": ["aconchegante"], "lugar_nome": "Forno da Praça",
+            "lugar_cidade": "Lajeado", "confianca": "alta",
+        }))
+        self.assertEqual(leitura, ia.Leitura("Pizza de fermentação natural", ["aconchegante"], "Forno da Praça",
+                                             "Lajeado", "alta"))
+
+        requisicao = urlopen.call_args.args[0]
+        self.assertIn(f"/models/{gemini.MODELO_PADRAO}:generateContent", requisicao.full_url)
+        self.assertEqual(requisicao.get_header("X-goog-api-key"), "chave-de-teste")
+        corpo = json.loads(requisicao.data)
+        self.assertEqual(corpo["generationConfig"]["responseSchema"]["properties"]["tags"]["items"]["enum"],
+                         ["aconchegante", "vinho"])
+        self.assertIn(LEGENDA, corpo["contents"][0]["parts"][0]["text"])
+        self.assertIn("@fornodapraca", corpo["contents"][0]["parts"][0]["text"])
+
+    def test_ignora_partes_de_raciocinio_e_campos_com_tipo_errado(self):
+        corpo = {"candidates": [{"content": {"parts": [
+            {"text": "pensando...", "thought": True},
+            {"text": json.dumps({"frase": 5, "tags": ["vinho", 3], "lugar_nome": None, "confianca": "media"})},
+        ]}}]}
+        leitura, _ = self.ler(corpo)
+        self.assertEqual(leitura, ia.Leitura("", ["vinho"], "", "", "media"))
+
+    def test_resposta_bloqueada_ou_fora_do_formato_e_erro_do_texto(self):
+        with self.assertRaises(ia.ErroIA):
+            self.ler({"promptFeedback": {"blockReason": "SAFETY"}})
+        with self.assertRaises(ia.ErroIA):
+            self.ler(resposta_gemini("isso não é json"))
+        with self.assertRaises(ia.ErroIA):
+            self.ler(resposta_gemini("[1, 2]"))
+
+    def test_limite_chave_e_rede_deixam_a_ia_indisponivel(self):
+        for codigo in (429, 403, 404, 503):
+            erro = urllib.error.HTTPError("https://x", codigo, "erro", {}, io.BytesIO(b'{"error": "x"}'))
+            with self.subTest(codigo=codigo), self.assertRaises(ia.IAIndisponivel):
+                self.ler(erro=erro)
+        with self.assertRaises(ia.IAIndisponivel):
+            self.ler(erro=urllib.error.URLError("sem rede"))
+        with self.assertRaises(ia.IAIndisponivel):
+            self.ler(erro=TimeoutError())
+
+    def test_cliente_padrao_depende_da_chave(self):
+        with override_settings(GEMINI_CHAVE=""):
+            self.assertIsNone(ia.cliente_padrao())
+        with override_settings(GEMINI_CHAVE="abc", GEMINI_MODELO="gemini-outro"):
+            cliente = ia.cliente_padrao()
+            self.assertIsInstance(cliente, gemini.ClienteGemini)
+            self.assertEqual(cliente.modelo, "gemini-outro")
+        with override_settings(GEMINI_CHAVE="abc", GEMINI_MODELO=""):
+            self.assertEqual(ia.cliente_padrao().modelo, gemini.MODELO_PADRAO)
+
+
+class AvaliarTests(TestCase):
+    def test_mede_acertos_sem_gravar_nada(self):
+        cliente = ClienteFalso(ia.Leitura(frase="Pizza", tags=["aconchegante"], lugar_nome="Forno da Praça",
+                                          confianca="alta"))
+        saida = io.StringIO()
+        with mock.patch.object(ia, "cliente_padrao", return_value=cliente):
+            call_command("avaliar_intencoes", "salvos/avaliacao/exemplos.json", pausa=0, stdout=saida)
+        texto = saida.getvalue()
+        self.assertIn("Casos lidos: 8 de 8", texto)
+        # o cliente falso responde sempre igual: acerta 6 dos 8 em "útil", 1 de 8 motivos e 1 dos 4 nomes
+        self.assertIn("Útil ou não (confiança): 75% de acerto", texto)
+        self.assertIn("Motivos: precisão 12%", texto)
+        self.assertIn("Nome do lugar: 25% de acerto", texto)
         self.assertFalse(Intencao.objects.exists())

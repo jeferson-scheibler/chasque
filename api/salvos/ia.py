@@ -1,11 +1,14 @@
 """Cliente da IA que lê o texto de um link salvo (ver docs/plano-intencao.md).
 
-O resto do Chasque só conhece esta interface: `Entrada` vai, `Leitura` volta, `ErroIA` quando não deu.
+O resto do Chasque só conhece esta interface: `Entrada` vai, `Leitura` volta, `ErroIA` quando não deu para
+ler aquele texto e `IAIndisponivel` quando a IA não está atendendo.
 Os testes trocam o cliente por um simulado; nenhum teste chama a rede.
 """
 
 from dataclasses import dataclass, field
 from typing import Protocol
+
+from django.conf import settings
 
 
 @dataclass(frozen=True)
@@ -29,7 +32,11 @@ class Leitura:
 
 
 class ErroIA(Exception):
-    """A IA não respondeu, demorou demais ou respondeu fora do formato."""
+    """Não deu para ler este texto (resposta bloqueada ou fora do formato). Conta como tentativa."""
+
+
+class IAIndisponivel(Exception):
+    """A IA não está atendendo agora (limite da conta, chave, rede, fora do ar). Para o lote sem gastar tentativas."""
 
 
 class Cliente(Protocol):
@@ -39,9 +46,9 @@ class Cliente(Protocol):
 
 
 def cliente_padrao() -> Cliente | None:
-    """O cliente configurado, ou None quando não há chave (aí nada é enviado e as intenções esperam).
+    """O cliente configurado, ou None quando não há chave (aí nada é enviado e as intenções esperam)."""
+    if not settings.GEMINI_CHAVE:
+        return None
+    from .gemini import ClienteGemini
 
-    O cliente do Gemini (com settings.GEMINI_CHAVE e settings.GEMINI_MODELO) entra no passo 2 do plano.
-    Até lá não há cliente real: só os testes leem intenções.
-    """
-    return None
+    return ClienteGemini(chave=settings.GEMINI_CHAVE, modelo=settings.GEMINI_MODELO)

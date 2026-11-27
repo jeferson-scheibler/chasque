@@ -76,10 +76,16 @@ Com `confianca` baixa, a frase não aparece. Fica só o pedido normal de "Por qu
 
 ### Custo e limites
 
-- Modelo Flash do Gemini, configurado por `GEMINI_MODELO`; a chave fica em `GEMINI_CHAVE` no `.env`.
+- Gemini pela API REST do Google AI Studio, sem SDK (`salvos/gemini.py`). Modelo em `GEMINI_MODELO`
+  (padrão `gemini-3.5-flash`, que na avaliação dos exemplos acertou bem; o 3.8 vivia sobrecarregado na camada gratuita); a chave fica em `GEMINI_CHAVE` no `.env`.
+- Por enquanto, **camada gratuita**: o leitor lê no máximo 5 por minuto. Limite estourado, chave errada, modelo
+  inexistente ou rede fora param o lote sem gastar as tentativas de ninguém (`IAIndisponivel`); só resposta
+  bloqueada ou fora do formato conta como tentativa (`ErroIA`).
 - Uma chamada por salvo com texto, repetida só se o texto mudar.
-- Limite de 30 chamadas por pessoa por dia e timeout de 15 s.
-- Reprocessar todos os salvos antigos é um comando à parte (`ler_intencoes --todos`), rodado à mão.
+- Limite de 30 chamadas por pessoa por dia e timeout de 30 s.
+- Reprocessar todos os salvos antigos é um comando à parte (`ler_intencoes --todos EMAIL`), rodado à mão.
+- Avaliação: `python manage.py avaliar_intencoes ARQUIVO.json` roda a IA sobre legendas com a resposta
+  esperada e mede acertos, sem gravar nada. `salvos/avaliacao/exemplos.json` mostra o formato.
 
 ## Fase 2: o motivo volta na hora do passeio
 
@@ -120,8 +126,9 @@ Esse é o sinal que separa "o lugar é bom" de "o lugar é bom para o que eu pro
 
 1. **IA ligada ou desligada por padrão?** O plano assume desligada, com convite para ligar no primeiro salvo
    com texto. Ligada por padrão pede aviso mais forte por causa da LGPD.
-2. **Conta do Gemini:** na camada gratuita da API, o Google pode usar o conteúdo para melhorar os produtos.
-   Para texto de usuário, o certo é a camada paga ou o Vertex AI.
+2. **Conta do Gemini:** decidido usar a camada gratuita por enquanto. Nela, o Google pode usar o conteúdo
+   para melhorar os produtos; antes de abrir para usuários de fora da equipe, trocar para a camada paga ou o
+   Vertex AI (ou para um modelo local).
 3. **Reprocessar os salvos antigos** de quem ligar a IA, ou só os novos?
 
 ## Ordem de entrega

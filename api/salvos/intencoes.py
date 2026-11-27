@@ -22,7 +22,8 @@ log = logging.getLogger(__name__)
 VERSAO_PROMPT = "1"
 MAX_TAGS = 3
 MAX_TENTATIVAS = 3
-LOTE = 20
+# Por minuto (o leitor roda a cada minuto). A camada gratuita do Gemini aceita poucas chamadas por minuto.
+LOTE = 5
 # Chamadas por pessoa por dia. O que passar disso fica pendente para o dia seguinte.
 LIMITE_DIA = 30
 
@@ -77,7 +78,12 @@ def processar(cliente=None, limite=LOTE):
         if usuario.pk in no_limite or lidas_hoje(usuario) >= LIMITE_DIA:
             no_limite.add(usuario.pk)
             continue
-        ler(intencao, cliente, motivos)
+        try:
+            ler(intencao, cliente, motivos)
+        except ia.IAIndisponivel as erro:
+            # vale para todos: o resto da fila espera a próxima rodada, sem gastar tentativas
+            log.warning("IA indisponível, lote interrompido: %s", erro)
+            break
         lidas += 1
         if lidas >= limite:
             break
