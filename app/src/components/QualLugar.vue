@@ -3,7 +3,7 @@
     <template v-if="!novo && (carregando || meus.length)">
       <h2 class="secao-titulo">{{ titulo }}</h2>
 
-      <button type="button" class="qual__novo" :style="{ '--borda-rs': MASCARA_BORDA_RS }" @click="novo = true">
+      <button type="button" class="qual__novo" @click="novo = true">
         <span class="qual__sol" aria-hidden="true"><ion-icon :icon="addOutline" /></span>
         <span class="linha__texto">
           <span class="qual__novo-titulo">Iniciar um novo Chasque</span>
@@ -56,7 +56,6 @@ import { IonIcon, IonSpinner } from '@ionic/vue'
 import { addOutline, arrowForward, searchOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
 import BuscaLugar from '@/components/BuscaLugar.vue'
-import { MASCARA_BORDA_RS } from '@/borda-rs'
 import { iconeDaCategoria } from '@/categorias'
 import { api } from '@/services/api'
 import { resumoDoLugar, type Lugar, type MeuLugar } from '@/types'

@@ -13,7 +13,7 @@
       />
 
       <template v-else>
-        <a v-if="!salvo.lugar || trocando" class="origem" :href="salvo.url" target="_blank" rel="noopener noreferrer">
+        <a v-if="!salvo.lugar || trocando" class="origem cartao-rs" :href="salvo.url" target="_blank" rel="noopener noreferrer">
           <span class="origem__icone"><ion-icon :icon="logoInstagram" aria-hidden="true" /></span>
           <span class="linha__texto">
             <span class="linha__titulo">{{ NOME_DO_TIPO[salvo.tipo] }}</span>
@@ -276,10 +276,7 @@ watch(() => route.params.id, (id, antes) => {
   align-items: center;
   gap: 14px;
   margin: 6px 16px 0;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: var(--chasque-papel);
-  border: 1px solid var(--chasque-neblina);
+  padding: 22px 16px 14px;
   color: inherit;
   text-decoration: none;
 }

@@ -181,3 +181,37 @@
   --padding-top: 30px;
   --padding-bottom: 48px;
 }
+
+/*
+ * Cartão com a divisa norte do RS no topo (ver borda-rs.ts). Fundo e contorno ficam em duas camadas
+ * recortadas pela mesma máscara, para o contorno acompanhar a curva. Cada cartão escolhe as cores
+ * por --cartao-rs-fundo e --cartao-rs-traco; sombra, quando houver, vai em filter: drop-shadow.
+ */
+.cartao-rs {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  background: none;
+}
+
+.cartao-rs::before,
+.cartao-rs::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask: var(--borda-rs);
+  mask: var(--borda-rs);
+}
+
+.cartao-rs::before {
+  inset: 0;
+  border-radius: 6px 6px 20px 20px;
+  background: var(--cartao-rs-traco, var(--chasque-neblina));
+}
+
+.cartao-rs::after {
+  inset: 1px;
+  border-radius: 5px 5px 19px 19px;
+  background: var(--cartao-rs-fundo, var(--chasque-papel));
+}

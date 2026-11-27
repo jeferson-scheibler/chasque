@@ -8,7 +8,7 @@
       </ion-refresher>
 
       <!-- Convite: a única forma de alguém pedir para seguir -->
-      <section class="convite">
+      <section class="convite cartao-rs">
         <h2>Seu convite</h2>
         <p>
           Mande este link para quem você confia. A pessoa pede para te seguir e você decide. Ninguém acha você por
@@ -216,16 +216,16 @@ onIonViewWillEnter(carregar)
   position: relative;
   overflow: hidden;
   margin: 8px 16px 6px;
-  padding: 20px;
-  border-radius: 24px;
-  background: var(--chasque-faixa);
+  padding: 28px 20px 20px;
+  --cartao-rs-fundo: var(--chasque-faixa);
+  --cartao-rs-traco: var(--chasque-faixa);
   color: var(--chasque-faixa-texto);
 }
 
 @media (prefers-color-scheme: dark) {
   .convite {
-    background: #1a2440;
-    border: 1px solid var(--chasque-neblina);
+    --cartao-rs-fundo: #1a2440;
+    --cartao-rs-traco: var(--chasque-neblina);
   }
 }
 

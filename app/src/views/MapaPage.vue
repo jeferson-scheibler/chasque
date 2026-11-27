@@ -42,7 +42,7 @@
       </div>
 
       <transition name="cartao">
-        <article v-if="escolhido" slot="fixed" class="cartao" aria-live="polite">
+        <article v-if="escolhido" slot="fixed" class="cartao cartao-rs" aria-live="polite">
           <button type="button" class="cartao__fechar" aria-label="Fechar" @click="escolher(null)">
             <ion-icon :icon="close" aria-hidden="true" />
           </button>
@@ -499,10 +499,9 @@ onBeforeUnmount(() => {
   left: 12px;
   right: 12px;
   bottom: 52px;
-  padding: 18px 18px 16px;
-  border-radius: 24px;
-  background: var(--chasque-papel);
-  box-shadow: 0 22px 50px -20px rgba(15, 21, 36, 0.55);
+  padding: 26px 18px 16px;
+  --cartao-rs-traco: var(--chasque-papel);
+  filter: drop-shadow(0 14px 22px rgba(15, 21, 36, 0.4));
 }
 
 .cartao__fechar {

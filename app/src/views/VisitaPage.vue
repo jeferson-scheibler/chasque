@@ -9,7 +9,7 @@
         <!-- Onde -->
         <section class="passo">
           <h2 class="passo__titulo">Onde você foi?</h2>
-          <div v-if="lugar" class="lugar-escolhido">
+          <div v-if="lugar" class="lugar-escolhido cartao-rs">
             <span class="linha__icone"><ion-icon :icon="iconeDaCategoria(lugar.categoria)" aria-hidden="true" /></span>
             <span class="linha__texto">
               <span class="linha__titulo">{{ lugar.nome }}</span>
@@ -101,7 +101,7 @@
 
     <!-- visita nova: o chasque aprova antes de voltar para a lista -->
     <div v-if="comemorando" class="aprovado" role="status">
-      <div class="aprovado__cartao">
+      <div class="aprovado__cartao cartao-rs">
         <mascote pose="aprovando" class="aprovado__chasque" />
         <p class="aprovado__titulo">Visita registrada</p>
         <p class="aprovado__texto">{{ lugar?.nome }} já está ensinando o seu gosto ao Chasque.</p>
@@ -342,11 +342,11 @@ onMounted(() => {
 
 .aprovado__cartao {
   width: min(300px, 100%);
-  padding: 26px 24px 22px;
-  border-radius: 28px;
-  background: var(--colina-perto);
+  padding: 32px 24px 22px;
+  --cartao-rs-fundo: var(--colina-perto);
+  --cartao-rs-traco: var(--colina-perto);
   text-align: center;
-  box-shadow: 0 18px 50px rgb(15 21 36 / 0.35);
+  filter: drop-shadow(0 16px 26px rgb(15 21 36 / 0.35));
   animation: subir 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
 }
 
@@ -437,10 +437,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 12px 12px 14px;
-  border-radius: 18px;
-  background: var(--chasque-papel);
-  border: 1px solid var(--chasque-neblina);
+  padding: 20px 12px 12px 14px;
 }
 
 .trocar {

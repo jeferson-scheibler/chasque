@@ -30,7 +30,7 @@
               <component
                 :is="p.salvo_id ? 'router-link' : 'div'"
                 :to="p.salvo_id ? `/abas/lugares/salvo/${p.salvo_id}` : undefined"
-                class="parada__cartao"
+                class="parada__cartao cartao-rs"
               >
                 <span class="linha__icone"><ion-icon :icon="iconeDaCategoria(p.lugar.categoria)" aria-hidden="true" /></span>
                 <span class="linha__texto">
@@ -217,10 +217,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 12px 12px 14px;
-  border-radius: 18px;
-  background: var(--chasque-papel);
-  border: 1px solid var(--chasque-neblina);
+  padding: 20px 12px 12px 14px;
   color: inherit;
   text-decoration: none;
   transition: transform 0.15s ease;

@@ -60,7 +60,7 @@
         </section>
 
         <template v-else>
-          <section class="ligada">
+          <section class="ligada cartao-rs">
             <div class="ligada__cabeca">
               <span class="ligada__icone"><ion-icon :icon="calendarOutline" aria-hidden="true" /></span>
               <span class="linha__texto">
@@ -93,7 +93,7 @@
           </section>
 
           <h2 class="secao-titulo">Avisos no celular</h2>
-          <label class="avisos">
+          <label class="avisos cartao-rs">
             <span>
               <strong>Avisar dos roteiros</strong>
               <small>{{ textoDosAvisos }}</small>
@@ -474,10 +474,7 @@ onMounted(carregar)
 
 .ligada {
   margin: 8px 16px 0;
-  padding: 18px 16px;
-  border-radius: 22px;
-  background: var(--chasque-papel);
-  border: 1px solid var(--chasque-neblina);
+  padding: 26px 16px 18px;
 }
 
 .ligada__cabeca {
@@ -567,10 +564,7 @@ onMounted(carregar)
   gap: 16px;
   align-items: center;
   margin: 0 16px;
-  padding: 16px;
-  border-radius: 18px;
-  background: var(--chasque-papel);
-  border: 1px solid var(--chasque-neblina);
+  padding: 24px 16px 16px;
 }
 
 .avisos span {

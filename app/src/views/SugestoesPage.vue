@@ -80,7 +80,6 @@
         v-if="proximoRoteiro"
         :to="`/abas/sugestoes/roteiro/${proximoRoteiro.id}`"
         class="convite-fds"
-        :style="{ '--borda-rs': MASCARA_BORDA_RS }"
       >
         <span class="convite-fds__topo">
           <span class="convite-fds__chamada">
@@ -224,7 +223,6 @@ import Vazio from '@/components/Vazio.vue'
 import { iconeDaCategoria } from '@/categorias'
 import { api, ErroApi, mensagemDe } from '@/services/api'
 import { useMotivos } from '@/stores/motivos'
-import { MASCARA_BORDA_RS } from '@/borda-rs'
 import { dataDoDia, nomeDoDia, useRoteiros } from '@/stores/roteiros'
 import { resumoDoLugar, type Cidade, type Lugar, type Momento, type Roteiro } from '@/types'
 

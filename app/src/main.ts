@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { MASCARA_BORDA_RS } from './borda-rs'
 
 import '@ionic/vue/css/core.css'
 import '@ionic/vue/css/normalize.css'
@@ -16,6 +17,9 @@ import '@fontsource-variable/bricolage-grotesque'
 import '@fontsource-variable/figtree'
 import './theme/variables.css'
 import './theme/botoes.css'
+
+// a divisa norte do RS que recorta o topo dos cartões (ver .cartao-rs em botoes.css)
+document.documentElement.style.setProperty('--borda-rs', MASCARA_BORDA_RS)
 
 const app = createApp(App).use(IonicVue).use(createPinia()).use(router)
 

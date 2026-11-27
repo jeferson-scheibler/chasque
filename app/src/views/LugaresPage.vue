@@ -48,7 +48,7 @@
               v-for="salvo in pendentes"
               :key="salvo.id"
               :to="`/abas/lugares/salvo/${salvo.id}`"
-              class="bilhete"
+              class="bilhete cartao-rs"
             >
               <ion-icon :icon="logoInstagram" aria-hidden="true" class="bilhete__icone" />
               <span class="linha__texto">
@@ -235,10 +235,9 @@ onIonViewWillEnter(() => {
   align-items: center;
   gap: 14px;
   margin: 10px 16px 0;
-  padding: 14px 14px 14px 16px;
-  border: 1.5px dashed color-mix(in srgb, var(--chasque-ocre) 70%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--chasque-ocre) 7%, var(--chasque-fundo));
+  padding: 22px 14px 14px 16px;
+  --cartao-rs-traco: color-mix(in srgb, var(--chasque-ocre) 60%, transparent);
+  --cartao-rs-fundo: color-mix(in srgb, var(--chasque-ocre) 7%, var(--chasque-fundo));
   color: inherit;
   text-decoration: none;
   transition: transform 0.15s ease;
