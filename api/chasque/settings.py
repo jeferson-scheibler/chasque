@@ -121,6 +121,10 @@ VAPID_PUBLICA = os.environ.get("VAPID_PUBLICA", "")
 VAPID_PRIVADA = os.environ.get("VAPID_PRIVADA", "")
 VAPID_CONTATO = os.environ.get("VAPID_CONTATO", "mailto:contato@chasque.app")
 
+# IA que lê por que a pessoa salvou um link (salvos/intencoes.py). Sem a chave, nada é enviado a ninguém.
+GEMINI_CHAVE = os.environ.get("GEMINI_CHAVE", "")
+GEMINI_MODELO = os.environ.get("GEMINI_MODELO", "")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",

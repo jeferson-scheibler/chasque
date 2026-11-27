@@ -9,6 +9,7 @@ from lugares.serializers import LugarSerializer
 from registros.models import Registro
 
 from . import instagram
+from .intencoes import marcar_pendente
 from .models import Salvo
 from .serializers import CompartilhamentoSerializer, SalvoSerializer
 
@@ -60,6 +61,8 @@ class SalvosView(generics.ListAPIView):
                 mudou.append("lugar")
             if mudou:
                 existente.save(update_fields=[*mudou, "atualizado_em"])
+            if "texto" in mudou:
+                marcar_pendente(existente)
             return self.resposta(existente, ja_salvo=True)
 
         try:
@@ -69,6 +72,7 @@ class SalvosView(generics.ListAPIView):
                 )
         except IntegrityError:  # dois compartilhamentos iguais ao mesmo tempo
             return self.resposta(Salvo.objects.get(usuario=request.user, url=link.url), ja_salvo=True)
+        marcar_pendente(salvo)
         return self.resposta(salvo, ja_salvo=False)
 
     def resposta(self, salvo, ja_salvo):
@@ -112,3 +116,9 @@ class SalvoView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags", "lugar__motivos_comunidade__tag")
+
+    def perform_update(self, serializer):
+        antes = serializer.instance.texto
+        salvo = serializer.save()
+        if salvo.texto != antes:
+            marcar_pendente(salvo)

@@ -10,7 +10,7 @@ from .models import Usuario, UsuarioManager
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ["id", "email", "nome", "cidade_base", "contribuir_motivos", "date_joined"]
+        fields = ["id", "email", "nome", "cidade_base", "contribuir_motivos", "usar_ia", "date_joined"]
         read_only_fields = ["id", "email", "date_joined"]
 
 

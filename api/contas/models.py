@@ -45,6 +45,9 @@ class Usuario(AbstractUser):
     # Motivos de visitas bem avaliadas entram, somados aos de outras pessoas e sem nome, na descrição do lugar.
     contribuir_motivos = models.BooleanField(default=True)
 
+    # O texto dos links salvos vai para a IA ler o motivo de ter salvo (salvos/intencoes.py). Desligado por padrão.
+    usar_ia = models.BooleanField(default=False)
+
     # LGPD: registro do consentimento.
     termos_aceitos_em = models.DateTimeField(null=True, blank=True)
     versao_termos = models.CharField(max_length=20, blank=True)

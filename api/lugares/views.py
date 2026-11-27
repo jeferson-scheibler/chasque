@@ -1,29 +1,18 @@
-import unicodedata
-
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-from django.contrib.postgres.search import TrigramWordSimilarity
-from django.db.models import Func, Q, Value
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from .busca import por_nome, sem_acento
 from .models import Cidade, Lugar, Tag
 from .osm import cidade_mais_proxima
 from .serializers import CidadeSerializer, CriarLugarSerializer, LugarSerializer, TagSerializer
 
 LIMITE_RESULTADOS = 20
 RAIO_DUPLICADO_M = 200
-
-
-class Unaccent(Func):
-    function = "unaccent"
-
-
-def sem_acento(texto):
-    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
 
 
 def ponto_da_query(params):
@@ -75,9 +64,7 @@ class LugaresView(APIView):
 
         ordem = []
         if q:
-            lugares = lugares.annotate(
-                semelhanca=TrigramWordSimilarity(Value(q), Unaccent("nome"))
-            ).filter(Q(nome__unaccent__icontains=q) | Q(semelhanca__gte=0.4))
+            lugares = por_nome(lugares, q)
             ordem.append("-semelhanca")
         if perto:
             lugares = lugares.annotate(distancia=Distance("ponto", perto))

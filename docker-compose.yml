@@ -55,6 +55,24 @@ services:
     depends_on:
       - api
 
+  # A cada minuto: lê com a IA por que as pessoas salvaram os links da fila (salvos/intencoes.py).
+  # Sem GEMINI_CHAVE, fica parado sem enviar nada.
+  leitor:
+    build:
+      context: ./api
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+    command: python manage.py ler_intencoes --repetir 1
+    volumes:
+      - ./api:/app
+    depends_on:
+      - api
+
   app:
     build: ./app
     restart: unless-stopped
