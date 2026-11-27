@@ -13,7 +13,7 @@
       />
 
       <template v-else>
-        <a class="origem" :href="salvo.url" target="_blank" rel="noopener noreferrer">
+        <a v-if="!salvo.lugar || trocando" class="origem" :href="salvo.url" target="_blank" rel="noopener noreferrer">
           <span class="origem__icone"><ion-icon :icon="logoInstagram" aria-hidden="true" /></span>
           <span class="linha__texto">
             <span class="linha__titulo">{{ NOME_DO_TIPO[salvo.tipo] }}</span>
@@ -49,10 +49,52 @@
         </section>
 
         <section v-else class="identificar">
-          <h2 class="secao-titulo">{{ trocando ? 'Qual é o lugar certo?' : 'Encontre o lugar' }}</h2>
-          <p class="secao-apoio">Busque pelo nome. A base tem os lugares do Rio Grande do Sul.</p>
-          <busca-lugar :sugestao="sugestao" @escolher="vincular" />
+          <qual-lugar
+            :titulo="trocando ? 'Qual é o lugar certo?' : `Esse ${salvo.tipo} é de um lugar que você já tem?`"
+            :sugestao="sugestao"
+            :ignorar="trocando ? salvo.lugar?.id : null"
+            @escolher="vincular"
+          />
           <button v-if="trocando" type="button" class="botao botao--texto" @click="trocando = false">Cancelar</button>
+        </section>
+
+        <section v-if="salvo.lugar && !trocando" class="links">
+          <h2 class="secao-titulo">Posts e reels deste lugar</h2>
+          <ul class="linhas">
+            <li v-for="(outro, i) in links" :key="outro.id" :style="{ '--i': i }">
+              <a v-if="outro.id === salvo.id" class="linha" :href="outro.url" target="_blank" rel="noopener noreferrer">
+                <span class="linha__icone links__ig"><ion-icon :icon="logoInstagram" aria-hidden="true" /></span>
+                <span class="linha__texto">
+                  <span class="linha__titulo">{{ rotuloDoLink(outro) }}</span>
+                  <span class="linha__meta">Este link, abrir no Instagram</span>
+                </span>
+                <ion-icon :icon="openOutline" class="linha__seta" aria-hidden="true" />
+              </a>
+              <router-link v-else class="linha" :to="`/abas/lugares/salvo/${outro.id}`" replace>
+                <span class="linha__icone links__ig"><ion-icon :icon="logoInstagram" aria-hidden="true" /></span>
+                <span class="linha__texto">
+                  <span class="linha__titulo">{{ rotuloDoLink(outro) }}</span>
+                  <span class="linha__meta">{{ outro.texto || `Salvo em ${dataCurta(outro.criado_em)}` }}</span>
+                </span>
+                <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
+              </router-link>
+            </li>
+          </ul>
+          <form class="links__novo" @submit.prevent="adicionarLink">
+            <ion-icon :icon="linkOutline" aria-hidden="true" />
+            <input
+              v-model="novoLink"
+              type="url"
+              inputmode="url"
+              autocomplete="off"
+              placeholder="Cole outro post ou reel"
+              aria-label="Link de outro post ou reel deste lugar"
+            />
+            <button type="submit" class="links__mais" :disabled="!novoLink.trim() || enviando" aria-label="Adicionar link">
+              <ion-spinner v-if="enviando" name="crescent" />
+              <ion-icon v-else :icon="addOutline" aria-hidden="true" />
+            </button>
+          </form>
         </section>
 
         <section class="anotacao">
@@ -80,15 +122,17 @@
 
 <script setup lang="ts">
 import { alertController, IonContent, IonIcon, IonPage, IonSpinner, toastController } from '@ionic/vue'
-import { footstepsOutline, logoInstagram, openOutline, peopleOutline, trashOutline } from 'ionicons/icons'
-import { computed, onMounted, ref } from 'vue'
+import {
+  addOutline, chevronForward, footstepsOutline, linkOutline, logoInstagram, openOutline, peopleOutline, trashOutline,
+} from 'ionicons/icons'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import BuscaLugar from '@/components/BuscaLugar.vue'
 import Faixa from '@/components/Faixa.vue'
+import QualLugar from '@/components/QualLugar.vue'
 import Vazio from '@/components/Vazio.vue'
 import { iconeDaCategoria, nomeDaTag } from '@/categorias'
 import { api, ErroApi } from '@/services/api'
-import { NOME_DO_TIPO, resumoDoLugar, type Lugar, type Salvo } from '@/types'
+import { NOME_DO_TIPO, resumoDoLugar, type Lugar, type Pagina, type Salvo } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,6 +141,9 @@ const salvo = ref<Salvo | null>(null)
 const carregando = ref(true)
 const trocando = ref(false)
 const texto = ref('')
+const links = ref<Salvo[]>([])
+const novoLink = ref('')
+const enviando = ref(false)
 
 const caminho = computed(() => `/salvos/${route.params.id}/`)
 // motivos confirmados por pessoas primeiro, depois os do OpenStreetMap
@@ -117,20 +164,62 @@ async function avisar(mensagem: string, cor?: string) {
   await toast.present()
 }
 
+const formatoData = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' })
+function dataCurta(iso: string) {
+  return formatoData.format(new Date(iso)).replace('.', '')
+}
+
+function rotuloDoLink(s: Salvo) {
+  const tipo = s.tipo === 'reel' ? 'Reel' : s.tipo === 'post' ? 'Post' : 'Perfil'
+  return s.perfil ? `${tipo} de @${s.perfil}` : NOME_DO_TIPO[s.tipo]
+}
+
+async function carregarLinks() {
+  const lugar = salvo.value?.lugar
+  if (!lugar) {
+    links.value = []
+    return
+  }
+  try {
+    links.value = (await api<Pagina<Salvo>>(`/salvos/?lugar=${lugar.id}`)).results
+  } catch {
+    links.value = salvo.value ? [salvo.value] : []
+  }
+}
+
 async function carregar() {
   carregando.value = true
   try {
     salvo.value = await api<Salvo>(caminho.value)
     texto.value = salvo.value.texto
+    await carregarLinks()
   } catch {
     salvo.value = null
   } finally {
     carregando.value = false
   }
+  if (route.query.ja === '1' && salvo.value) await avisar('Esse link já estava salvo')
 }
 
 async function atualizar(dados: Record<string, unknown>) {
   salvo.value = await api<Salvo>(caminho.value, { method: 'PATCH', json: dados })
+  await carregarLinks()
+}
+
+async function adicionarLink() {
+  const lugar = salvo.value?.lugar
+  if (!lugar || !novoLink.value.trim()) return
+  enviando.value = true
+  try {
+    const novo = await api<Salvo>('/salvos/', { method: 'POST', json: { url: novoLink.value.trim(), lugar_id: lugar.id } })
+    novoLink.value = ''
+    await carregarLinks()
+    await avisar(novo.ja_salvo ? `Esse link já estava salvo. Agora está em ${lugar.nome}` : `Link adicionado a ${lugar.nome}`)
+  } catch (e) {
+    await avisar(e instanceof ErroApi ? e.message : 'Não foi possível adicionar o link.', 'danger')
+  } finally {
+    enviando.value = false
+  }
 }
 
 async function vincular(lugar: Lugar) {
@@ -175,6 +264,10 @@ async function remover() {
 }
 
 onMounted(carregar)
+// tocar em outro link do mesmo lugar troca só o id da rota
+watch(() => route.params.id, (id, antes) => {
+  if (id && id !== antes) void carregar()
+})
 </script>
 
 <style scoped>
@@ -293,6 +386,92 @@ onMounted(carregar)
 
 .identificar .botao--texto {
   margin-top: 8px;
+}
+
+.links {
+  padding-top: 26px;
+}
+
+.links li {
+  animation: chegar 0.35s ease-out both;
+  animation-delay: calc(var(--i) * 45ms);
+}
+
+.links__ig {
+  color: var(--chasque-sobre-ocre);
+  background: var(--chasque-ocre);
+}
+
+.links__novo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 16px 0;
+  padding: 0 6px 0 16px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--chasque-neblina);
+  background: var(--chasque-papel);
+  color: var(--chasque-tinta-suave);
+  transition: border-color 0.2s ease;
+}
+
+.links__novo:focus-within {
+  border-style: solid;
+  border-color: var(--chasque-faixa);
+}
+
+.links__novo input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--chasque-tinta);
+  outline: none;
+}
+
+.links__mais {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: var(--chasque-ocre);
+  color: var(--chasque-sobre-ocre);
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.links__mais:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.links__mais:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.links__mais ion-spinner {
+  width: 20px;
+  height: 20px;
+  color: inherit;
+}
+
+@keyframes chegar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .links li {
+    animation: none;
+  }
 }
 
 .anotacao {

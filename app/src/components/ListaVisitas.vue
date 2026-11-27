@@ -16,7 +16,7 @@
 
     <vazio
       v-else-if="visitas.length === 0 && !termo"
-      pose="trote"
+      ilustracao="cavalo"
       titulo="Guarde por que você gostou"
       texto="Registre o lugar onde você foi, como foi e o que fez diferença. É assim que o Chasque aprende o seu gosto."
     >

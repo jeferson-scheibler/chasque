@@ -81,7 +81,7 @@
 
       <vazio
         v-if="carregou && vazio"
-        pose="parado"
+        ilustracao="cuia"
         titulo="Ninguém por aqui ainda"
         texto="Quando alguém aceitar seu convite, ou você aceitar o de alguém, essa pessoa aparece aqui."
       />

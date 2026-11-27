@@ -1,6 +1,7 @@
 <template>
   <section class="vazio" :class="{ 'vazio--espiando': pose === 'espiando' }">
-    <div class="vazio__mascote"><mascote :pose="pose" /></div>
+    <div v-if="ilustracao" class="vazio__ilustracao"><ilustracao :nome="ilustracao" /></div>
+    <div v-else-if="pose" class="vazio__mascote"><mascote :pose="pose" /></div>
     <h2>{{ titulo }}</h2>
     <p>{{ texto }}</p>
     <slot />
@@ -8,9 +9,12 @@
 </template>
 
 <script setup lang="ts">
+import Ilustracao from './Ilustracao.vue'
 import Mascote, { type PoseMascote } from './Mascote.vue'
+import type { NomeIlustracao } from './ilustracoes'
 
-defineProps<{ titulo: string; texto: string; pose: PoseMascote }>()
+/** Com `ilustracao`, mostra o desenho no lugar do mascote. */
+defineProps<{ titulo: string; texto: string; pose?: PoseMascote; ilustracao?: NomeIlustracao }>()
 </script>
 
 <style scoped>
@@ -24,6 +28,19 @@ defineProps<{ titulo: string; texto: string; pose: PoseMascote }>()
 .vazio__mascote {
   margin: 0 auto 22px;
   animation: chegar 0.6s ease-out both;
+}
+
+.vazio__ilustracao {
+  margin: 0 auto 22px;
+  animation: chegar 0.6s ease-out both;
+}
+
+/* pela altura, como o mascote: desenho alto (a cuia) ou largo (o gaúcho) ocupam o mesmo espaço */
+.vazio__ilustracao .ilustracao {
+  height: 140px;
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .vazio__mascote .mascote {
@@ -42,7 +59,20 @@ defineProps<{ titulo: string; texto: string; pose: PoseMascote }>()
   animation-name: espiar;
 }
 
-.vazio--espiando .vazio__mascote .mascote {
+.vazio--espiando .vazio__ilustracao {
+  margin: 0 auto 22px;
+  animation: chegar 0.6s ease-out both;
+}
+
+/* pela altura, como o mascote: desenho alto (a cuia) ou largo (o gaúcho) ocupam o mesmo espaço */
+.vazio__ilustracao .ilustracao {
+  height: 140px;
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.vazio__mascote .mascote {
   height: 200px;
   margin: 0;
 }
@@ -75,7 +105,8 @@ defineProps<{ titulo: string; texto: string; pose: PoseMascote }>()
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vazio__mascote {
+  .vazio__mascote,
+  .vazio__ilustracao {
     animation: none;
   }
 }

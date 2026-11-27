@@ -119,7 +119,7 @@ async function salvar() {
   try {
     const salvo = await api<Salvo>('/salvos/', { method: 'POST', json: { url: link.value.trim() } })
     adicionar.fechar()
-    await router.push(`/abas/lugares/salvo/${salvo.id}`)
+    await router.push(`/abas/lugares/salvo/${salvo.id}${salvo.ja_salvo ? '?ja=1' : ''}`)
   } catch (e) {
     erro.value = e instanceof ErroApi ? e.message : 'Sem conexão com o servidor. Tente de novo.'
   } finally {

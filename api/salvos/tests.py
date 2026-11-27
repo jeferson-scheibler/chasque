@@ -119,3 +119,39 @@ class SalvosTests(APITestCase):
         self.assertEqual(exportado["salvos"][0]["texto"], "anotação")
         self.assertEqual(self.client.delete(f"{self.url}{salvo}/").status_code, 204)
         self.assertFalse(Salvo.objects.exists())
+
+    def test_varios_links_no_mesmo_lugar(self):
+        primeiro = self.compartilhar(url=self.reel, lugar_id=self.lugar.id)
+        self.assertEqual(primeiro.status_code, 201)
+        self.assertFalse(primeiro.data["ja_salvo"])
+        self.assertEqual(primeiro.data["lugar"]["id"], self.lugar.id)
+        self.compartilhar(url="https://www.instagram.com/p/OUTROpost1/", lugar_id=self.lugar.id)
+        self.compartilhar(url="https://www.instagram.com/p/DeOutroLugar/")
+        do_lugar = self.client.get(self.url, {"lugar": self.lugar.id}).data["results"]
+        self.assertEqual(len(do_lugar), 2)
+
+        # compartilhar de novo um link já salvo avisa e pode trocar o lugar
+        r = self.compartilhar(url="https://www.instagram.com/p/DeOutroLugar/", lugar_id=self.lugar.id)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.data["ja_salvo"])
+        self.assertEqual(len(self.client.get(self.url, {"lugar": self.lugar.id}).data["results"]), 3)
+
+    def test_meus_lugares(self):
+        from registros.models import Registro
+        outro = Lugar.objects.create(nome="Cascata do Moinho", ponto=Point(-51.9, -29.4), fonte="osm",
+                                     id_externo="node/11")
+        alheio = Lugar.objects.create(nome="Bar da Bia", ponto=Point(-51.9, -29.4), fonte="osm", id_externo="node/12")
+        self.compartilhar(url=self.reel, lugar_id=self.lugar.id)
+        self.compartilhar(url="https://www.instagram.com/p/OUTROpost1/", lugar_id=self.lugar.id)
+        Registro.objects.create(usuario=self.ana, lugar=outro, nota=5)
+        Registro.objects.create(usuario=self.bia, lugar=alheio, nota=5)
+
+        r = self.client.get("/api/meus-lugares/")
+        self.assertEqual(r.status_code, 200)
+        por_nome = {l["nome"]: l for l in r.data}
+        self.assertEqual(set(por_nome), {"Café da Praça", "Cascata do Moinho"})
+        self.assertEqual(por_nome["Café da Praça"]["links"], 2)
+        self.assertFalse(por_nome["Café da Praça"]["visitado"])
+        self.assertTrue(por_nome["Cascata do Moinho"]["visitado"])
+        self.assertEqual([l["nome"] for l in self.client.get("/api/meus-lugares/", {"q": "cafe"}).data],
+                         ["Café da Praça"])

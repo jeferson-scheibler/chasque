@@ -26,6 +26,15 @@
         <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
       </router-link>
 
+      <router-link to="/abas/conta/agenda" class="pessoas-entrada agenda-entrada">
+        <span class="linha__icone"><ion-icon :icon="calendarOutline" aria-hidden="true" /></span>
+        <span class="linha__texto">
+          <span class="linha__titulo">Agenda e fins de semana</span>
+          <span class="linha__meta">{{ resumoAgenda }}</span>
+        </span>
+        <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
+      </router-link>
+
       <h2 class="secao-titulo">Privacidade</h2>
       <label class="contribuir">
         <span>
@@ -73,8 +82,9 @@
 </template>
 
 <script setup lang="ts">
+import type { EstadoAgenda } from '@/types'
 import { alertController, IonContent, IonIcon, IonPage, IonToggle, onIonViewWillEnter, toastController } from '@ionic/vue'
-import { chevronForward, downloadOutline, logOutOutline, peopleOutline, trashOutline } from 'ionicons/icons'
+import { calendarOutline, chevronForward, downloadOutline, logOutOutline, peopleOutline, trashOutline } from 'ionicons/icons'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Campo from '@/components/Campo.vue'
@@ -124,7 +134,19 @@ const resumoPessoas = computed(() => {
   return `Você segue ${seguindo.value}, ${seguidores.value} seguem você`
 })
 
+const resumoAgenda = ref('Roteiros para os sábados e domingos livres')
+
 onIonViewWillEnter(async () => {
+  api<EstadoAgenda>('/agenda/')
+    .then((a) => {
+      if (!a.conectada) resumoAgenda.value = 'Roteiros para os sábados e domingos livres'
+      else if (a.erro) resumoAgenda.value = 'A agenda não abriu na última leitura'
+      else {
+        const n = a.dias_livres.length
+        resumoAgenda.value = n ? `Ligada, ${n === 1 ? '1 fim de semana livre' : `${n} fins de semana livres`} por vir` : 'Ligada, fins de semana cheios'
+      }
+    })
+    .catch(() => undefined)
   try {
     const r = await api<{ pedidos: unknown[]; seguindo: unknown[]; seguidores: unknown[] }>('/pessoas/')
     pedidos.value = r.pedidos.length
@@ -211,6 +233,10 @@ async function excluir(senha: string) {
   margin-left: 0;
   margin-right: 0;
   margin-bottom: 14px;
+}
+
+.pessoas-entrada.agenda-entrada {
+  margin-top: 10px;
 }
 
 .pessoas-entrada {

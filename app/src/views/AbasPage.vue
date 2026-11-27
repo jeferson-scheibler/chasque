@@ -11,6 +11,7 @@
         <ion-tab-button tab="sugestoes" href="/abas/sugestoes">
           <ion-icon :icon="sparklesOutline" aria-hidden="true" />
           <ion-label>Sugestões</ion-label>
+          <ion-badge v-if="roteiros.novos" class="abas__selo" :aria-label="`${roteiros.novos} roteiro novo`">{{ roteiros.novos }}</ion-badge>
         </ion-tab-button>
 
         <!-- O sol nasce do meio da barra: é o botão de adicionar. -->
@@ -35,15 +36,18 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon, IonLabel, IonPage, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
+import { IonBadge, IonIcon, IonLabel, IonPage, IonRouterOutlet, IonTabBar, IonTabButton, IonTabs } from '@ionic/vue'
 import { add, bookmarkOutline, mapOutline, personCircleOutline, sparklesOutline } from 'ionicons/icons'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AdicionarFolha from '@/components/AdicionarFolha.vue'
 import BordaAbas from '@/components/BordaAbas.vue'
 import { useAdicionar } from '@/stores/adicionar'
+import { useRoteiros } from '@/stores/roteiros'
 
 const adicionar = useAdicionar()
+const roteiros = useRoteiros()
+onMounted(() => { void roteiros.carregar() })
 const route = useRoute()
 // No formulário de visita o botão de salvar fica embaixo; a barra (e o sol) saem da frente.
 const emFormulario = computed(() => route.path.includes('/visita/'))
@@ -65,6 +69,16 @@ const emFormulario = computed(() => route.path.includes('/visita/'))
   right: 0;
   bottom: calc(100% - 1px);
   pointer-events: none;
+}
+
+.abas__selo {
+  --background: var(--chasque-ocre);
+  --color: var(--chasque-sobre-ocre);
+  --padding-start: 6px;
+  --padding-end: 6px;
+  min-width: 18px;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .abas--oculta {

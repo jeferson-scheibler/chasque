@@ -38,6 +38,23 @@ services:
       db:
         condition: service_healthy
 
+  # De hora em hora: lê as agendas ligadas, monta roteiros para os fins de semana livres e manda os avisos.
+  agendador:
+    build:
+      context: ./api
+      args:
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+    command: python manage.py planejar_fins_de_semana --repetir 60
+    volumes:
+      - ./api:/app
+    depends_on:
+      - api
+
   app:
     build: ./app
     restart: unless-stopped

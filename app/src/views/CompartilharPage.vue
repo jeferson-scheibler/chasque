@@ -43,7 +43,7 @@ onMounted(async () => {
       method: 'POST',
       json: { url: parametro('url'), text: parametro('text'), title: parametro('title') },
     })
-    await router.replace(`/abas/lugares/salvo/${salvo.id}`)
+    await router.replace(`/abas/lugares/salvo/${salvo.id}${salvo.ja_salvo ? '?ja=1' : ''}`)
   } catch (e) {
     erro.value = e instanceof ErroApi ? e.message : 'Sem conexão com o servidor. Tente compartilhar de novo.'
   }

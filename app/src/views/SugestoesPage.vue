@@ -75,6 +75,29 @@
         </div>
       </div>
 
+      <!-- a borda de cima é a divisa norte do RS, o Rio Uruguai, achatada: está lá para quem reparar -->
+      <router-link
+        v-if="proximoRoteiro"
+        :to="`/abas/sugestoes/roteiro/${proximoRoteiro.id}`"
+        class="convite-fds"
+        :style="{ '--borda-rs': MASCARA_BORDA_RS }"
+      >
+        <span class="convite-fds__topo">
+          <span class="convite-fds__chamada">
+            {{ proximoRoteiro.viagem && proximoRoteiro.cidade ? `Bate e volta para ${proximoRoteiro.cidade}` : 'Aproveite o fim de semana' }}
+          </span>
+          <span v-if="!proximoRoteiro.visto" class="convite-fds__novo">Novo</span>
+        </span>
+        <span class="convite-fds__meio">
+          <span class="convite-fds__textos">
+            <span class="convite-fds__dia">{{ diaDoConvite(proximoRoteiro.dia) }}</span>
+            <span class="convite-fds__corpo">{{ resumoDoConvite(proximoRoteiro) }}</span>
+          </span>
+          <ilustracao nome="mapa" class="convite-fds__mapa" />
+        </span>
+        <span class="convite-fds__acao">Ver roteiro<ion-icon :icon="arrowForward" aria-hidden="true" /></span>
+      </router-link>
+
       <div v-if="carregando && !carregou" class="esqueleto" aria-label="Carregando">
         <ion-skeleton-text :animated="true" class="esqueleto__destaque" />
         <ion-skeleton-text v-for="n in 3" :key="n" :animated="true" class="esqueleto__linha" />
@@ -99,7 +122,7 @@
 
       <vazio
         v-else-if="!origem"
-        pose="espiando"
+        ilustracao="pin"
         titulo="Onde você quer procurar?"
         texto="Use a sua localização ou escolha uma cidade do RS."
       >
@@ -190,17 +213,20 @@ import {
   actionSheetController, IonContent, IonIcon, IonPage, IonRefresher, IonRefresherContent, IonSkeletonText,
   onIonViewWillEnter, type RefresherCustomEvent,
 } from '@ionic/vue'
-import { calendarOutline, locationOutline, navigateOutline, peopleCircleOutline, peopleOutline, timeOutline } from 'ionicons/icons'
+import { arrowForward, calendarOutline, locationOutline, navigateOutline, peopleCircleOutline, peopleOutline, timeOutline } from 'ionicons/icons'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EscolherCidade from '@/components/EscolherCidade.vue'
 import Escolhas from '@/components/Escolhas.vue'
+import Ilustracao from '@/components/Ilustracao.vue'
 import Faixa from '@/components/Faixa.vue'
 import Vazio from '@/components/Vazio.vue'
 import { iconeDaCategoria } from '@/categorias'
 import { api, ErroApi, mensagemDe } from '@/services/api'
 import { useMotivos } from '@/stores/motivos'
-import { resumoDoLugar, type Cidade, type Lugar } from '@/types'
+import { MASCARA_BORDA_RS } from '@/borda-rs'
+import { dataDoDia, nomeDoDia, useRoteiros } from '@/stores/roteiros'
+import { resumoDoLugar, type Cidade, type Lugar, type Momento, type Roteiro } from '@/types'
 
 interface Sugestao {
   lugar: Lugar
@@ -249,6 +275,29 @@ const carregou = ref(false)
 const resultados = ref<Sugestao[]>([])
 const origem = ref<Resposta['origem']>(null)
 const temGosto = ref(true)
+const roteiros = useRoteiros()
+const proximoRoteiro = computed(() => roteiros.lista[0] ?? null)
+
+
+/** "Sábado, 28" */
+function diaDoConvite(iso: string) {
+  const dia = nomeDoDia(iso)
+  return `${dia[0].toUpperCase()}${dia.slice(1)}, ${dataDoDia(iso).getDate()}`
+}
+
+const DESDE: Record<Momento, string> = { manha: 'do café', almoco: 'do almoço', tarde: 'da tarde', noite: 'da noite' }
+const ATE: Record<Momento, string> = { manha: 'à manhã', almoco: 'ao almoço', tarde: 'à tarde', noite: 'à noite' }
+
+/** "4 paradas em Lajeado, do café à noite." */
+function resumoDoConvite(r: Roteiro) {
+  const n = r.paradas.length
+  const onde = r.cidade && !r.viagem ? ` em ${r.cidade}` : ''
+  const primeira = r.paradas[0]?.momento
+  const ultima = r.paradas[n - 1]?.momento
+  const arco = primeira && ultima && primeira !== ultima ? `, ${DESDE[primeira]} ${ATE[ultima]}` : ''
+  return `${n} ${n === 1 ? 'parada' : 'paradas'}${onde}${arco}.`
+}
+
 const erro = ref('')
 
 // onde procurar: posição (só quando a pessoa toca) ou cidade; lembrado neste aparelho
@@ -499,7 +548,10 @@ watch(mostrarOnde, async (aberto) => {
   if (aberto && !cidades.value.length) cidades.value = await api<Cidade[]>('/cidades/')
 })
 
-onIonViewWillEnter(() => { void carregar() })
+onIonViewWillEnter(() => {
+  void carregar()
+  void roteiros.carregar()
+})
 </script>
 
 <style scoped>
@@ -893,5 +945,116 @@ onIonViewWillEnter(() => { void carregar() })
 ion-skeleton-text {
   --background: var(--chasque-neblina);
   --background-rgb: 235, 228, 213;
+}
+
+/* convite do fim de semana: liso, com o dia em tipo grande; a única marca é a borda de cima (ver borda-rs.ts) */
+.convite-fds {
+  display: flex;
+  flex-direction: column;
+  margin: 14px 16px 12px;
+  padding: 22px 20px 18px;
+  border-radius: 6px 6px 20px 20px;
+  text-decoration: none;
+  color: var(--chasque-faixa-texto);
+  background: var(--chasque-faixa);
+  -webkit-mask: var(--borda-rs);
+  mask: var(--borda-rs);
+  animation: convite 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  transition: transform 0.15s ease;
+}
+
+.convite-fds:active {
+  transform: scale(0.985);
+}
+
+.convite-fds__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.convite-fds__chamada {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--chasque-faixa-suave);
+}
+
+.convite-fds__novo {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--chasque-sobre-ocre);
+  background: var(--chasque-ocre);
+}
+
+.convite-fds__meio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.convite-fds__textos {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* o mapa com a rota, em creme sobre o azul */
+.convite-fds__mapa {
+  flex: none;
+  width: clamp(62px, 21vw, 86px);
+  --ilustracao-tinta: var(--chasque-faixa-texto);
+}
+
+.convite-fds__dia {
+  margin: 6px 0 4px;
+  white-space: nowrap;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: clamp(1.75rem, 9vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.convite-fds__corpo {
+  text-wrap: pretty;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--chasque-faixa-suave);
+}
+
+.convite-fds__acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-weight: 700;
+  color: var(--chasque-ocre);
+}
+
+.convite-fds__acao ion-icon {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.convite-fds:active .convite-fds__acao ion-icon {
+  transform: translateX(4px);
+}
+
+@keyframes convite {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .convite-fds {
+    animation: none;
+  }
 }
 </style>

@@ -62,12 +62,15 @@
           <section v-if="identificados.length">
             <h2 class="secao-titulo">Quero conhecer</h2>
             <ul class="linhas">
-              <li v-for="salvo in identificados" :key="salvo.id">
+              <li v-for="{ salvo, links } in identificados" :key="salvo.id">
                 <router-link :to="`/abas/lugares/salvo/${salvo.id}`" class="linha">
                   <span class="linha__icone"><ion-icon :icon="iconeDaCategoria(salvo.lugar!.categoria)" aria-hidden="true" /></span>
                   <span class="linha__texto">
                     <span class="linha__titulo">{{ salvo.lugar!.nome }}</span>
                     <span class="linha__meta">{{ resumoDoLugar(salvo.lugar!) || NOME_DO_TIPO[salvo.tipo] }}</span>
+                  </span>
+                  <span v-if="links > 1" class="links" :aria-label="`${links} links salvos`">
+                    <ion-icon :icon="logoInstagram" aria-hidden="true" />{{ links }}
                   </span>
                   <span v-if="salvo.visitado" class="visitado">Visitado</span>
                   <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
@@ -119,7 +122,17 @@ const temMais = ref(false)
 const carregando = ref(false)
 
 const pendentes = computed(() => salvos.value.filter((s) => !s.lugar))
-const identificados = computed(() => salvos.value.filter((s) => s.lugar))
+// um lugar com vários posts e reels aparece uma vez só, pelo link mais recente
+const identificados = computed(() => {
+  const porLugar = new Map<number, { salvo: Salvo; links: number }>()
+  for (const s of salvos.value) {
+    if (!s.lugar) continue
+    const grupo = porLugar.get(s.lugar.id)
+    if (grupo) grupo.links += 1
+    else porLugar.set(s.lugar.id, { salvo: s, links: 1 })
+  }
+  return [...porLugar.values()]
+})
 
 const formatoData = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' })
 function dataCurta(iso: string) {
@@ -162,6 +175,19 @@ onIonViewWillEnter(() => {
 </script>
 
 <style scoped>
+.links {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chasque-ocre) 22%, var(--chasque-fundo));
+  color: var(--chasque-tinta);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .alternador {
   /* deixa o canto direito livre para as araucárias */
   max-width: calc(100% - 104px);

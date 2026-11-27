@@ -16,6 +16,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', redirect: '/abas/lugares' },
       { path: 'sugestoes', component: () => import('@/views/SugestoesPage.vue') },
+      { path: 'sugestoes/roteiro/:id(\\d+)', component: () => import('@/views/RoteiroPage.vue') },
       { path: 'registrar', redirect: '/abas/lugares/visita/nova' },
       { path: 'lugares', component: () => import('@/views/LugaresPage.vue') },
       { path: 'lugares/salvo/:id(\\d+)', component: () => import('@/views/SalvoPage.vue') },
@@ -24,6 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'mapa', component: () => import('@/views/MapaPage.vue') },
       { path: 'conta', component: () => import('@/views/ContaPage.vue') },
       { path: 'conta/pessoas', component: () => import('@/views/PessoasPage.vue') },
+      { path: 'conta/agenda', component: () => import('@/views/AgendaPage.vue') },
       { path: 'conta/pessoas/:id(\\d+)', component: () => import('@/views/PessoaPage.vue') },
     ],
   },

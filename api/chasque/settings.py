@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "registros",
     "salvos",
     "pessoas",
+    "agenda",
 ]
 
 MIDDLEWARE = [
@@ -114,6 +115,12 @@ VERSAO_TERMOS = "2026-11-2"
 # Abaixo disso, daria para deduzir quem esteve lá.
 MOTIVOS_MIN_PESSOAS = int(os.environ.get("MOTIVOS_MIN_PESSOAS", "3"))
 
+# Web Push (avisos de roteiro). Gere com `python manage.py gerar_chaves_push`. Sem as chaves, os avisos ficam
+# só dentro do app.
+VAPID_PUBLICA = os.environ.get("VAPID_PUBLICA", "")
+VAPID_PRIVADA = os.environ.get("VAPID_PRIVADA", "")
+VAPID_CONTATO = os.environ.get("VAPID_CONTATO", "mailto:contato@chasque.app")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -133,6 +140,8 @@ REST_FRAMEWORK = {
         "cadastro": "5/hour",
         "criar_lugar": "30/day",
         "convite": "30/hour",
+        "agenda": "20/hour",
+        "aviso_teste": "10/hour",
     },
     # Atras do nginx em producao, defina DRF_NUM_PROXIES=1 para o limite contar o IP real.
     "NUM_PROXIES": int(os.environ["DRF_NUM_PROXIES"]) if os.environ.get("DRF_NUM_PROXIES") else None,

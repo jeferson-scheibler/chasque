@@ -18,6 +18,7 @@
   --chasque-ocre-brilho: rgba(217, 154, 43, 0.45);
   --chasque-sobre-ocre: #1f2b4d;
   --chasque-campo: #4f7a4a;
+  --chasque-ilustracao: #1f2b4d;
   /* morros da cena do login, do mais longe ao mais perto */
   --colina-longe: #34426c;
   --colina-meio: #d6cbb5;
@@ -101,6 +102,7 @@
     --chasque-ocre: #e3ae4e;
     --chasque-ocre-brilho: rgba(227, 174, 78, 0.4);
     --chasque-sobre-ocre: #141b2e;
+    --chasque-ilustracao: #ece6da;
     --colina-longe: #26315a;
     --colina-meio: #1c2542;
     --colina-perto: #0f1524;

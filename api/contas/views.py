@@ -136,6 +136,7 @@ class ExportarView(APIView):
     """Portabilidade (LGPD art. 18): tudo que o Chasque guarda sobre a pessoa, em JSON."""
 
     def get(self, request):
+        from agenda.models import Agenda, Roteiro
         from registros.models import PesoGosto, PreferenciaDeclarada, Registro
         from salvos.models import Salvo
 
@@ -179,6 +180,16 @@ class ExportarView(APIView):
                     "criado_em": s.criado_em,
                 }
                 for s in Salvo.objects.filter(usuario=usuario).select_related("lugar")
+            ],
+            # o endereço secreto da agenda é da própria pessoa: vai junto, para ela poder levar para outro lugar
+            "agenda": next(
+                ({"url": a.url, "lida_em": a.lida_em, "dias_livres": a.dias_livres}
+                 for a in Agenda.objects.filter(usuario=usuario)),
+                None,
+            ),
+            "roteiros": [
+                {"dia": r.dia, "cidade": r.cidade, "paradas": [p.lugar.nome for p in r.paradas.all()]}
+                for r in Roteiro.objects.filter(usuario=usuario).prefetch_related("paradas__lugar")
             ],
             "preferencias": sorted(
                 PreferenciaDeclarada.objects.filter(usuario=usuario).values_list("tag__slug", flat=True)

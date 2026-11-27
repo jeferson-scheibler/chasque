@@ -72,7 +72,8 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | GET | `/api/lugares/?q=&lat=&lng=` | Busca por nome (sem acento, tolera erro de digitação) e/ou proximidade. Até 20 resultados. |
 | POST | `/api/lugares/` | Cadastra lugar que não está na base (`nome` + `cidade_id` ou `lat`/`lng`). 30 por dia por pessoa. |
 | GET | `/api/cidades/` | Cidades importadas do OSM. |
-| GET, POST | `/api/salvos/` | Lista os salvos (`?pendentes=1` só os sem lugar) ou recebe um compartilhamento (`url`, `text`, `title`). |
+| GET, POST | `/api/salvos/` | Lista os salvos (`?pendentes=1` só os sem lugar, `?lugar=` os de um lugar) ou recebe um compartilhamento (`url`, `text`, `title`, e `lugar_id` para já ligar a um lugar). A resposta traz `ja_salvo`. |
+| GET | `/api/meus-lugares/` | Lugares da pessoa (com link salvo ou visita), os mais recentes primeiro, com `links` e `visitado`. `?q=` filtra pelo nome. |
 | GET, PATCH, DELETE | `/api/salvos/<id>/` | Ver, vincular a um lugar (`lugar_id`), anotar (`texto`) ou remover. |
 | GET | `/api/lugares/<id>/` | Um lugar. |
 | GET | `/api/tags/` | Motivos que dá para marcar numa visita, com o grupo (ambiente, preço, comida...). |
@@ -87,6 +88,12 @@ docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v "$PWD/app":/app -w /app nod
 | POST | `/api/confiancas/<id>/aceitar/` | Aceitar um pedido. |
 | DELETE | `/api/confiancas/<id>/` | Recusar, cancelar, deixar de seguir ou remover seguidor. |
 | GET | `/api/pessoas/<id>/visitas/` | Visitas que uma pessoa seguida liberou (`?ocasiao=`, `?boas=1`). |
+| GET, PUT, DELETE | `/api/agenda/` | Situação da agenda, ligar com o endereço iCal (`url`, lido na hora) ou desligar. O endereço nunca volta. |
+| POST | `/api/agenda/ler/` | Lê a agenda de novo agora. |
+| GET | `/api/roteiros/` | Roteiros dos próximos fins de semana livres. |
+| GET, DELETE | `/api/roteiros/<id>/` | Ver um roteiro (marca como visto) ou "agora não" (não volta para esse dia). |
+| GET, POST, DELETE | `/api/avisos/` | Chave pública do Web Push, guardar ou tirar a inscrição do aparelho. |
+| POST | `/api/avisos/teste/` | Manda um aviso de teste para os aparelhos da pessoa. |
 | GET | `/api/healthz` | Saúde da API e do banco. |
 
 ## Base de lugares (OpenStreetMap)
@@ -132,8 +139,13 @@ própria (`mapa/Dockerfile`). Leva uns 25 minutos e precisa de uns 5 GB livres d
 
 1. A pessoa compartilha um post, reel ou perfil do Instagram com o Chasque, ou cola o link no botão + de "Meus lugares".
 2. A API guarda só o link, sem os parâmetros de rastreio (`igsh`, `utm_*`).
-3. O app pergunta "Qual lugar é esse?" e busca na base. Se o lugar não existir, a pessoa cadastra com a cidade
-   ou com a localização atual.
+3. O app pergunta se o post é de um lugar que a pessoa já tem (salvo ou visitado). Se for, o link entra junto
+   com os outros daquele lugar. Se não, "Iniciar um novo Chasque" busca na base, e se o lugar não existir a
+   pessoa cadastra com a cidade ou com a localização atual.
+
+Um lugar junta quantos posts e reels a pessoa quiser: a página dele lista todos e tem um campo para colar mais
+um. Em "Meus lugares" o lugar aparece uma vez só, com o número de links. Compartilhar de novo um link que já
+estava salvo não duplica: o app avisa e abre o que já existia.
 
 O Chasque não baixa a página do Instagram: os termos de uso dele proíbem coleta automatizada, e o Instagram
 só manda o link no compartilhamento, sem legenda nem localização. A pessoa pode colar a legenda na anotação.
@@ -143,6 +155,32 @@ Onde o compartilhamento funciona hoje:
   menu Compartilhar (Web Share Target). Exige HTTPS em produção.
 - **iPhone e quem não instalou:** copiar o link no Instagram e colar no botão +.
 - **Apps nativos (pendente):** intent filter no Android e Share Extension no iOS, quando os projetos do Capacitor forem criados.
+
+## Agenda e roteiros de fim de semana
+
+Em Conta, Agenda, a pessoa cola o endereço secreto da agenda em formato iCal (Google Agenda, Outlook ou iCloud;
+o app explica onde achar). Um app web não consegue ler a agenda do celular, e esse endereço evita login com o
+Google e verificação de app.
+
+- **O que é lido:** só os horários ocupados dos próximos 3 fins de semana. Títulos, locais e convidados não são
+  guardados. Eventos marcados como "livre" (feriados, lembretes) e cancelados não contam. Repetições (RRULE)
+  são expandidas.
+- **Dia livre:** nada ocupado entre 10h e 20h. Um dia por fim de semana: o sábado, ou o domingo se o sábado
+  estiver ocupado.
+- **Roteiro** (`api/agenda/roteiros.py`): os lugares salvos e ainda não visitados que não fecham naquele dia. O
+  centro do dia é o salvo com mais salvos num raio de 20 km; lugares que já estiveram num roteiro das últimas
+  4 semanas valem menos, para não repetir. Até 4 paradas. Com menos de 3, completa com as Sugestões perto do
+  centro. A ordem é a de um dia: café de manhã, restaurante no almoço, passeio à tarde, bar à noite; um lugar
+  fechado no horário do seu momento vai para outro em que está aberto. Hospedagem fica de fora. Se nenhuma
+  parada fica na cidade da pessoa, o roteiro vira "Bate e volta para ...".
+- **Aviso:** o roteiro aparece em Sugestões com um selo na aba. Com os avisos ligados, chega também uma
+  notificação (Web Push), de quarta a sexta, entre 9h e 21h, uma vez por roteiro. No iPhone o push só chega
+  com o Chasque instalado na tela de início.
+- **Agendador:** o container `agendador` roda `python manage.py planejar_fins_de_semana --repetir 60`: lê cada
+  agenda a cada 6 horas, refaz os roteiros (tira os de dias que ficaram ocupados, respeita "agora não") e manda
+  os avisos.
+- **Chaves do push:** `docker exec chasque-api-1 python manage.py gerar_chaves_push` e copie as duas linhas para
+  o `.env` (`VAPID_PUBLICA`, `VAPID_PRIVADA`, e `VAPID_CONTATO` com um `mailto:`). Sem elas, o roteiro fica só no app.
 
 ## Decisões de segurança
 
@@ -158,6 +196,12 @@ Onde o compartilhamento funciona hoje:
 - **LGPD:** consentimento guardado com data e versão dos termos; registros privados por padrão;
   exportação e exclusão real da conta.
 - **Dados de terceiros:** do Google só o place ID pode ser guardado. Dados do OSM exigem atribuição.
+- **Endereço da agenda (SSRF):** o servidor baixa um endereço que a pessoa cola. Só HTTPS na porta 443, o nome
+  precisa resolver para IPs públicos, a conexão vai direto ao IP conferido (sem uma segunda consulta ao DNS),
+  cada redirecionamento é conferido de novo, até 5 MB e 10 s. Ligar a agenda tem limite de 20 por hora. O
+  endereço fica no banco e só sai na exportação dos dados da própria pessoa.
+- **Web Push:** o servidor só manda aviso para endpoints dos serviços de push conhecidos (Google, Mozilla,
+  Apple, Microsoft). Inscrições canceladas (404/410) são apagadas.
 
 ## Pendências conhecidas
 

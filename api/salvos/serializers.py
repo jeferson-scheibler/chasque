@@ -30,3 +30,4 @@ class CompartilhamentoSerializer(serializers.Serializer):
     url = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     text = serializers.CharField(required=False, allow_blank=True, max_length=5000)
     title = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    lugar_id = serializers.PrimaryKeyRelatedField(queryset=Lugar.objects.all(), required=False, allow_null=True)

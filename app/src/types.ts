@@ -26,6 +26,14 @@ export interface Salvo {
   lugar: Lugar | null
   visitado: boolean
   criado_em: string
+  /** Só na resposta do POST: o link já estava na lista. */
+  ja_salvo?: boolean
+}
+
+/** Lugar que a pessoa já tem: ligado a um link salvo ou com visita registrada. */
+export interface MeuLugar extends Lugar {
+  links: number
+  visitado: boolean
 }
 
 export type Ocasiao = 'sozinho' | 'casal' | 'familia' | 'amigos' | 'trabalho' | 'grupo'
@@ -85,3 +93,35 @@ export function resumoDoLugar(lugar: Lugar): string {
   if (lugar.categoria_nome && lugar.cidade) return `${lugar.categoria_nome} em ${lugar.cidade}`
   return lugar.categoria_nome || lugar.cidade
 }
+
+export type Momento = 'manha' | 'almoco' | 'tarde' | 'noite'
+
+export const NOME_DO_MOMENTO: Record<Momento, string> = {
+  manha: 'Manhã',
+  almoco: 'Almoço',
+  tarde: 'Tarde',
+  noite: 'Noite',
+}
+
+export interface Parada {
+  lugar: Lugar
+  momento: Momento
+  /** Veio da lista da pessoa; senão é uma sugestão do Chasque. */
+  salvo: boolean
+  salvo_id: number | null
+  horario: string
+  km_da_anterior: number | null
+}
+
+export interface Roteiro {
+  id: number
+  dia: string
+  cidade: string
+  viagem: boolean
+  visto: boolean
+  paradas: Parada[]
+}
+
+export type EstadoAgenda =
+  | { conectada: false }
+  | { conectada: true; servico: string; lida_em: string | null; erro: string; dias_livres: string[] }
