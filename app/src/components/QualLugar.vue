@@ -2,7 +2,18 @@
   <div class="qual">
     <template v-if="!novo && (carregando || meus.length)">
       <h2 class="secao-titulo">{{ titulo }}</h2>
-      <p class="secao-apoio">Se for de um lugar que você já salvou ou visitou, o link entra junto com os outros.</p>
+
+      <button type="button" class="qual__novo" :style="{ '--borda-rs': MASCARA_BORDA_RS }" @click="novo = true">
+        <span class="qual__sol" aria-hidden="true"><ion-icon :icon="addOutline" /></span>
+        <span class="linha__texto">
+          <span class="qual__novo-titulo">Iniciar um novo Chasque</span>
+          <span class="qual__novo-meta">Lugar que ainda não está na sua lista</span>
+        </span>
+        <ion-icon :icon="arrowForward" class="qual__novo-seta" aria-hidden="true" />
+      </button>
+
+      <h3 class="secao-titulo qual__ou">Ou anexe a um lugar que você já tem</h3>
+      <p class="secao-apoio">O link entra junto com os outros que você salvou dele.</p>
 
       <div v-if="meus.length > POUCOS || termo" class="qual__filtro">
         <ion-icon :icon="searchOutline" aria-hidden="true" />
@@ -27,15 +38,6 @@
       <button v-if="!termo && meus.length > POUCOS && !todos" type="button" class="botao botao--texto qual__mais" @click="todos = true">
         Ver todos os {{ meus.length }}
       </button>
-
-      <button type="button" class="qual__novo" @click="novo = true">
-        <span class="qual__sol" aria-hidden="true"><ion-icon :icon="addOutline" /></span>
-        <span class="linha__texto">
-          <span class="linha__titulo">Iniciar um novo Chasque</span>
-          <span class="linha__meta qual__novo-meta">Lugar que ainda não está na sua lista</span>
-        </span>
-        <ion-icon :icon="chevronForward" class="linha__seta" aria-hidden="true" />
-      </button>
     </template>
 
     <template v-else>
@@ -51,9 +53,10 @@
 
 <script setup lang="ts">
 import { IonIcon, IonSpinner } from '@ionic/vue'
-import { addOutline, chevronForward, searchOutline } from 'ionicons/icons'
+import { addOutline, arrowForward, searchOutline } from 'ionicons/icons'
 import { computed, onMounted, ref } from 'vue'
 import BuscaLugar from '@/components/BuscaLugar.vue'
+import { MASCARA_BORDA_RS } from '@/borda-rs'
 import { iconeDaCategoria } from '@/categorias'
 import { api } from '@/services/api'
 import { resumoDoLugar, type Lugar, type MeuLugar } from '@/types'
@@ -155,17 +158,20 @@ onMounted(async () => {
   text-underline-offset: 4px;
 }
 
+/* mesmo bloco noturno do convite de fim de semana, com a divisa norte do RS no topo */
 .qual__novo {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   width: calc(100% - 32px);
-  margin: 18px 16px 0;
-  padding: 14px 16px;
-  border: 1.5px dashed color-mix(in srgb, var(--chasque-ocre) 70%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--chasque-ocre) 10%, var(--chasque-papel));
-  color: inherit;
+  margin: 10px 16px 0;
+  padding: 24px 18px 18px;
+  border: 0;
+  border-radius: 6px 6px 20px 20px;
+  background: var(--chasque-faixa);
+  color: var(--chasque-faixa-texto);
+  -webkit-mask: var(--borda-rs);
+  mask: var(--borda-rs);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -173,23 +179,63 @@ onMounted(async () => {
 }
 
 .qual__novo:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
 }
 
-.qual__novo-meta {
-  white-space: normal;
+.qual__novo:focus-visible {
+  outline: 3px solid var(--chasque-ocre);
+  outline-offset: -6px;
 }
 
 .qual__sol {
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 24px;
   color: var(--chasque-sobre-ocre);
   background: var(--chasque-ocre);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.qual__novo:active .qual__sol {
+  transform: rotate(90deg);
+}
+
+.qual__novo-titulo {
+  display: block;
+  font-family: var(--chasque-fonte-titulo);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.qual__novo-meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.85rem;
+  color: var(--chasque-faixa-suave);
+}
+
+.qual__novo-seta {
+  flex: none;
+  margin-left: auto;
+  font-size: 20px;
+  color: var(--chasque-ocre);
+  transition: transform 0.2s ease;
+}
+
+.qual__novo:active .qual__novo-seta {
+  transform: translateX(4px);
+}
+
+.qual__ou {
+  margin-top: 26px;
+  font-size: 0.95rem;
+  color: var(--chasque-tinta-suave);
 }
 
 @keyframes chegar {

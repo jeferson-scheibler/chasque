@@ -50,7 +50,7 @@
 
         <section v-else class="identificar">
           <qual-lugar
-            :titulo="trocando ? 'Qual é o lugar certo?' : `Esse ${salvo.tipo} é de um lugar que você já tem?`"
+            :titulo="trocando ? 'Qual é o lugar certo?' : `De qual lugar é esse ${salvo.tipo}?`"
             :sugestao="sugestao"
             :ignorar="trocando ? salvo.lugar?.id : null"
             @escolher="vincular"
