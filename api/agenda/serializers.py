@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from lugares import horarios
 from lugares.serializers import LugarSerializer
+from salvos.intencoes import frases_por_lugar
 from salvos.models import Salvo
 
 from .models import Agenda, Roteiro
@@ -34,6 +35,7 @@ class RoteiroSerializer(serializers.ModelSerializer):
         salvos = {}
         for s in Salvo.objects.filter(usuario_id=roteiro.usuario_id, lugar_id__in=ids).order_by("criado_em"):
             salvos[s.lugar_id] = s.id
+        frases = frases_por_lugar(roteiro.usuario_id, ids)
         saida = []
         for i, p in enumerate(paradas):
             saida.append({
@@ -41,6 +43,8 @@ class RoteiroSerializer(serializers.ModelSerializer):
                 "momento": p.momento,
                 "salvo": p.salvo,
                 "salvo_id": salvos.get(p.lugar_id),
+                # por que a pessoa quis ir, quando o link tem um motivo lido ou confirmado
+                "intencao": frases.get(p.lugar_id, ""),
                 "horario": horarios.texto_do_dia(p.lugar.horario, roteiro.dia),
                 "km_da_anterior": round(km(paradas[i - 1].lugar, p.lugar), 1) if i else None,
             })

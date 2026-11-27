@@ -4,6 +4,8 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
+from salvos.intencoes import frases_por_lugar
+
 from . import ical, push
 from .livres import SEMANAS, dias_livres
 from .models import Agenda, Roteiro
@@ -51,13 +53,23 @@ def nomes(lista):
 def mensagem(roteiro):
     """(título, corpo) do aviso."""
     dia = DIAS_DA_SEMANA[roteiro.dia.weekday()]
-    paradas = [p.lugar.nome for p in roteiro.paradas.select_related("lugar")]
+    lugares = [p.lugar for p in roteiro.paradas.select_related("lugar")]
+    titulo = f"Bate e volta para {roteiro.cidade}?" if roteiro.viagem and roteiro.cidade else "Aproveite o fim de semana"
+
+    # se alguma parada tem o motivo de ter sido salva, o aviso lembra dele: é o que faz a pessoa querer ir
+    frases = frases_por_lugar(roteiro.usuario_id, [l.id for l in lugares])
+    lembrado = next((l for l in lugares if l.id in frases), None)
+    if lembrado:
+        outras = len(lugares) - 1
+        resto = f" Mais {outras} parada{'s' if outras > 1 else ''} perto." if outras else ""
+        motivo = frases[lembrado.id].rstrip(".!?…")
+        return titulo, f"{dia} livre na agenda. O roteiro passa por {lembrado.nome}: {motivo}.{resto}"
+
+    paradas = [l.nome for l in lugares]
     lista = nomes(paradas[:3]) + (f" e mais {len(paradas) - 3}" if len(paradas) > 3 else "")
     if roteiro.viagem and roteiro.cidade:
-        return (f"Bate e volta para {roteiro.cidade}?",
-                f"{dia} livre na agenda. Preparamos um roteiro especial com {lista}.")
-    return ("Aproveite o fim de semana",
-            f"{dia} livre na agenda. Curta esse roteiro especial: {lista}.")
+        return titulo, f"{dia} livre na agenda. Preparamos um roteiro especial com {lista}."
+    return titulo, f"{dia} livre na agenda. Curta esse roteiro especial: {lista}."
 
 
 def avisar_pendentes(agora=None):

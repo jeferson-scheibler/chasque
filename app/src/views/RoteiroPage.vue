@@ -39,6 +39,9 @@
                 </span>
                 <span v-if="!p.salvo" class="parada__origem">Sugestão</span>
               </component>
+              <p v-if="p.intencao" class="parada__intencao">
+                Você salvou por <strong>{{ p.intencao }}</strong>
+              </p>
             </div>
           </li>
         </ol>
@@ -225,6 +228,20 @@ onMounted(async () => {
 
 a.parada__cartao:active {
   transform: scale(0.98);
+}
+
+/* o motivo de ter salvo, embaixo do cartão: é o que lembra a pessoa por que aquela parada está ali */
+.parada__intencao {
+  margin: 8px 4px 2px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--chasque-tinta-suave);
+  text-wrap: pretty;
+}
+
+.parada__intencao strong {
+  font-weight: 650;
+  color: var(--chasque-tinta);
 }
 
 .parada__origem {

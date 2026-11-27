@@ -10,7 +10,8 @@ from rest_framework.test import APITestCase
 from contas.models import Usuario
 from lugares.models import Cidade, Lugar
 from registros.models import Registro
-from salvos.models import Salvo
+from salvos.intencoes import frases_por_lugar
+from salvos.models import Intencao, Salvo
 
 from . import ical, push
 from .livres import dia_livre, dias_livres, fins_de_semana
@@ -148,6 +149,36 @@ class RoteiroTests(Base):
         self.assertIn("Sábado livre na agenda", corpo)
         self.assertIn("Cafe e Cascata", corpo)
 
+    def intencao(self, lugar, frase, estado="pronta"):
+        salvo = Salvo.objects.filter(usuario=self.ana, lugar=lugar).first()
+        return Intencao.objects.create(salvo=salvo, frase=frase, estado=estado)
+
+    def test_aviso_lembra_o_motivo_de_ter_salvo(self):
+        self.lugar("Cafe", -51.95, -29.50, "amenity=cafe")
+        cascata = self.lugar("Cascata", -51.97, -29.51)
+        self.intencao(cascata, "Banho de cachoeira gelada!")
+        titulo, corpo = mensagem(criar(self.ana, SABADO))
+        self.assertEqual(titulo, "Bate e volta para Estrela?")
+        self.assertEqual(corpo, "Sábado livre na agenda. O roteiro passa por Cascata: Banho de cachoeira gelada. "
+                                "Mais 1 parada perto.")
+
+    def test_aviso_ignora_motivo_pendente_vazio_ou_de_outra_pessoa(self):
+        cafe = self.lugar("Cafe", -51.95, -29.50, "amenity=cafe")
+        cascata = self.lugar("Cascata", -51.97, -29.51)
+        self.intencao(cafe, "Café", estado="pendente")
+        self.intencao(cascata, "", estado="confirmada")
+        bia = Usuario.objects.create_user(email="bia@exemplo.com", password="x" * 12, nome="Bia")
+        alheio = Salvo.objects.create(usuario=bia, lugar=cafe, url="https://www.instagram.com/p/bia1/", tipo="post")
+        Intencao.objects.create(salvo=alheio, frase="O café da Bia", estado="confirmada")
+        self.assertIn("Cafe e Cascata", mensagem(criar(self.ana, SABADO))[1])
+
+    def test_frase_do_link_mais_recente(self):
+        cafe = self.lugar("Cafe", -51.95, -29.50, "amenity=cafe")
+        self.intencao(cafe, "Motivo antigo")
+        novo = Salvo.objects.create(usuario=self.ana, lugar=cafe, url="https://www.instagram.com/p/novo1/", tipo="post")
+        Intencao.objects.create(salvo=novo, frase="Motivo novo", estado="confirmada")
+        self.assertEqual(frases_por_lugar(self.ana.id, [cafe.id]), {cafe.id: "Motivo novo"})
+
     def test_parada_na_cidade_da_pessoa_nao_e_viagem(self):
         self.lugar("Cafe", -51.95, -29.50, "amenity=cafe", cidade="Lajeado")
         self.lugar("Cascata", -51.97, -29.51)
@@ -248,6 +279,14 @@ class ApiTests(APITestCase):
         self.assertEqual(r.data["url"], ["A agenda não abriu."])
         self.assertEqual(Agenda.objects.get().servico, "calendar.google.com")
 
+    def test_parada_traz_o_motivo_de_ter_salvo(self):
+        salvo = Salvo.objects.get(usuario=self.ana, lugar__nome="Cascata")
+        Intencao.objects.create(salvo=salvo, frase="Banho de cachoeira", estado="confirmada")
+        self.ligar()
+        with mock.patch("agenda.views.timezone.localdate", return_value=SEXTA):
+            paradas = self.client.get("/api/roteiros/").data[0]["paradas"]
+        self.assertEqual({p["lugar"]["nome"]: p["intencao"] for p in paradas}, {"Cafe": "", "Cascata": "Banho de cachoeira"})
+
     def test_roteiros_sao_de_cada_um(self):
         self.ligar()
         with mock.patch("agenda.views.timezone.localdate", return_value=SEXTA):
@@ -257,6 +296,7 @@ class ApiTests(APITestCase):
             self.assertFalse(roteiro["visto"])
             self.assertEqual(len(roteiro["paradas"]), 2)
             self.assertIsNotNone(roteiro["paradas"][0]["salvo_id"])
+            self.assertEqual([p["intencao"] for p in roteiro["paradas"]], ["", ""])
             self.assertTrue(self.client.get(f"/api/roteiros/{roteiro['id']}/").data["visto"])
 
             self.client.force_authenticate(self.bia)

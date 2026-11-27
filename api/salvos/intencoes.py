@@ -149,3 +149,24 @@ def encontrar_lugar(nome, cidade):
         return candidatos[0]
     exatos = [l for l in candidatos if sem_acento(l.nome).casefold() == q.casefold()]
     return exatos[0] if len(exatos) == 1 else None
+
+
+def frases_por_lugar(usuario_id, lugar_ids):
+    """A frase do motivo de cada lugar, tirada do link mais recente que tiver uma (lida pela IA ou confirmada).
+
+    Serve para o roteiro e o aviso de fim de semana lembrarem por que a pessoa quis ir.
+    """
+    frases = {}
+    intencoes = (
+        Intencao.objects.filter(
+            salvo__usuario_id=usuario_id,
+            salvo__lugar_id__in=lugar_ids,
+            estado__in=[Intencao.Estado.PRONTA, Intencao.Estado.CONFIRMADA],
+        )
+        .exclude(frase="")
+        .order_by("-salvo__criado_em")
+        .values_list("salvo__lugar_id", "frase")
+    )
+    for lugar_id, frase in intencoes:
+        frases.setdefault(lugar_id, frase)
+    return frases

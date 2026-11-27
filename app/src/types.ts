@@ -119,6 +119,8 @@ export interface Parada {
   /** Veio da lista da pessoa; senão é uma sugestão do Chasque. */
   salvo: boolean
   salvo_id: number | null
+  /** Por que a pessoa quis ir, do link salvo (lido pela IA ou confirmado). Vazio quando não há. */
+  intencao: string
   horario: string
   km_da_anterior: number | null
 }
