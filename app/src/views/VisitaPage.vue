@@ -15,11 +15,21 @@
               <span class="linha__titulo">{{ lugar.nome }}</span>
               <span class="linha__meta">{{ resumoDoLugar(lugar) || 'Lugar' }}</span>
             </span>
-            <button v-if="!editando" type="button" class="trocar" @click="lugar = null">Trocar</button>
+            <button v-if="!editando" type="button" class="trocar" @click="trocarLugar">Trocar</button>
           </div>
           <div v-else class="passo__busca">
             <busca-lugar @escolher="escolherLugar" />
           </div>
+        </section>
+
+        <!-- O motivo de ter salvo valeu? -->
+        <section v-if="intencaoId" class="passo">
+          <h2 class="passo__titulo">Valeu a pena?</h2>
+          <p class="passo__apoio">
+            Você salvou por <strong class="passo__motivo">{{ motivoSalvo }}</strong>. Isso ensina ao Chasque o que você
+            procura.
+          </p>
+          <escolhas v-model="expectativa" :opcoes="EXPECTATIVAS" rotulo="Se o motivo de ter salvo valeu" />
         </section>
 
         <!-- Como foi -->
@@ -142,6 +152,11 @@ const VISIBILIDADE: Opcao[] = [
   { valor: 'confianca', rotulo: 'Pessoas de confiança', icone: peopleOutline },
 ]
 const CHAVE_VISIBILIDADE = 'chasque-visibilidade'
+const EXPECTATIVAS: Opcao[] = [
+  { valor: 'sim', rotulo: 'Valeu' },
+  { valor: 'meio', rotulo: 'Mais ou menos' },
+  { valor: 'nao', rotulo: 'Não' },
+]
 const QUANDO: Opcao[] = [
   { valor: 'hoje', rotulo: 'Hoje' },
   { valor: 'ontem', rotulo: 'Ontem' },
@@ -165,6 +180,16 @@ const nota = ref(0)
 const tags = ref<string[]>([])
 const ocasiao = ref<string | null>(null)
 const motivo = ref('')
+// o motivo de ter salvo o link (quando a visita vem de um salvo com intenção) e se ele valeu
+const intencaoId = ref<number | null>(null)
+const intencao = ref<{ frase: string; tags: string[] } | null>(null)
+const expectativa = ref<string | null>(null)
+const motivoSalvo = computed(() => {
+  const i = intencao.value
+  if (!i) return ''
+  const nomes = i.tags.map((s) => motivos.nome(s).toLowerCase())
+  return i.frase || (nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}` : nomes[0] ?? '')
+})
 const quandoEscolha = ref<string>('hoje')
 // Privada por padrão; depois lembra a última escolha neste aparelho.
 const visibilidade = ref<string>(lerVisibilidade())
@@ -211,6 +236,14 @@ watch(quandoEscolha, (valor) => {
   if (valor === 'outro' && !data.value) data.value = ontem
 })
 
+/** Outro lugar: o motivo do link salvo não vale mais para esta visita. */
+function trocarLugar() {
+  lugar.value = null
+  intencaoId.value = null
+  intencao.value = null
+  expectativa.value = null
+}
+
 function escolherLugar(escolhido: Lugar) {
   lugar.value = escolhido
 }
@@ -226,6 +259,9 @@ async function carregar() {
       tags.value = [...r.tags]
       ocasiao.value = r.ocasiao
       motivo.value = r.motivo
+      intencaoId.value = r.intencao_id
+      intencao.value = r.intencao
+      expectativa.value = r.expectativa || null
       visibilidade.value = r.privado ? 'privado' : 'confianca'
       if (r.visitado_em === hoje) quandoEscolha.value = 'hoje'
       else if (r.visitado_em === ontem) quandoEscolha.value = 'ontem'
@@ -238,6 +274,11 @@ async function carregar() {
       const salvo = await api<Salvo>(`/salvos/${route.query.salvo}/`)
       lugar.value = salvo.lugar
       motivo.value = salvo.texto.slice(0, 500)
+      const lida = salvo.intencao
+      if (lida && lida.estado !== 'pendente' && (lida.frase || lida.tags.length)) {
+        intencaoId.value = lida.id
+        intencao.value = { frase: lida.frase, tags: lida.tags }
+      }
     } else if (typeof route.query.lugar === 'string') {
       lugar.value = await api<Lugar>(`/lugares/${route.query.lugar}/`)
     }
@@ -274,6 +315,8 @@ async function salvar() {
     motivo: motivo.value.trim(),
     visitado_em: dataEscolhida.value,
     privado: visibilidade.value !== 'confianca',
+    intencao_id: intencaoId.value,
+    expectativa: intencaoId.value ? expectativa.value ?? '' : '',
   }
   try {
     localStorage.setItem(CHAVE_VISIBILIDADE, visibilidade.value)
@@ -414,6 +457,11 @@ onMounted(() => {
   margin: -6px 0 12px;
   font-size: 0.875rem;
   color: var(--chasque-tinta-suave);
+}
+
+.passo__motivo {
+  font-weight: 650;
+  color: var(--chasque-tinta);
 }
 
 .passo__apoio--depois {

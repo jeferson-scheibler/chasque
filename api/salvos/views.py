@@ -119,6 +119,15 @@ class SalvoView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return com_visita(Salvo.objects.filter(usuario=self.request.user)).select_related("lugar").prefetch_related("lugar__tags", "lugar__motivos_comunidade__tag")
 
+    def perform_destroy(self, instance):
+        # visitas que diziam se o motivo deste link valeu perdem esse peso no perfil
+        pesava = Registro.objects.filter(intencao__salvo=instance).exclude(expectativa="").exists()
+        instance.delete()
+        if pesava:
+            from registros.perfil import recalcular_perfil
+
+            recalcular_perfil(self.request.user)
+
     def perform_update(self, serializer):
         antes = serializer.instance.texto
         salvo = serializer.save()

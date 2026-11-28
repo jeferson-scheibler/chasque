@@ -412,8 +412,9 @@ class IntencaoApiTests(APITestCase):
 
     def test_pendente_aparece_para_o_app_mostrar_que_esta_lendo(self):
         intencoes.marcar_pendente(self.salvo)
-        self.assertEqual(self.client.get(self.url()).data["intencao"],
-                         {"estado": "pendente", "frase": "", "tags": [], "lugar_sugerido": None})
+        intencao = self.client.get(self.url()).data["intencao"]
+        self.assertEqual(intencao, {"id": Intencao.objects.get().id, "estado": "pendente", "frase": "", "tags": [],
+                                    "lugar_sugerido": None})
 
     def test_pronta_traz_frase_motivos_e_lugar_sugerido(self):
         intencoes.marcar_pendente(self.salvo)

@@ -18,6 +18,7 @@ export interface Lugar {
 
 /** Por que a pessoa salvou o link: lido pela IA (pendente, pronta) ou confirmado por ela. */
 export interface Intencao {
+  id: number
   estado: 'pendente' | 'pronta' | 'confirmada'
   frase: string
   tags: string[]
@@ -58,6 +59,10 @@ export interface Registro {
   motivo: string
   /** true: só a pessoa vê; false: pessoas de confiança também */
   privado: boolean
+  /** O motivo de ter salvo o link de onde a visita veio, e se ele valeu. */
+  intencao_id: number | null
+  intencao: { frase: string; tags: string[] } | null
+  expectativa: '' | 'sim' | 'meio' | 'nao'
   criado_em: string
 }
 

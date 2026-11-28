@@ -168,7 +168,7 @@ class ExportarView(APIView):
         usuario = request.user
         registros = (
             Registro.objects.filter(usuario=usuario)
-            .select_related("lugar")
+            .select_related("lugar", "intencao")
             .prefetch_related("tags")
             .order_by("-visitado_em")
         )
@@ -193,6 +193,8 @@ class ExportarView(APIView):
                     "motivo": r.motivo,
                     "tags": [t.slug for t in r.tags.all()],
                     "privado": r.privado,
+                    "motivo_de_ter_salvo": r.intencao.frase if r.intencao else "",
+                    "valeu": r.get_expectativa_display() if r.expectativa else "",
                 }
                 for r in registros
             ],

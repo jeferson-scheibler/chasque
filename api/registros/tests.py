@@ -7,7 +7,8 @@ from rest_framework.test import APITestCase
 
 from contas.models import Usuario
 from lugares.models import Lugar
-from salvos.models import Salvo
+from lugares.models import Tag
+from salvos.models import Intencao, Salvo
 
 from .models import PesoGosto, Registro
 
@@ -112,6 +113,78 @@ class PerfilTests(Base):
         r = self.client.patch(f"{self.url}{rid}/", {"ocasiao": "amigos"}, format="json")
         self.assertEqual(r.status_code, 200, r.data)
         self.assertEqual(sorted(r.data["tags"]), ["cafe-colonial", "silencioso"])
+
+
+class ExpectativaTests(Base):
+    """A visita que vem de um link salvo com motivo diz se ele valeu; isso entra no perfil."""
+
+    def setUp(self):
+        super().setUp()
+        salvo = Salvo.objects.create(usuario=self.ana, lugar=self.cascata, url="https://www.instagram.com/p/cascata/",
+                                     tipo="post")
+        self.intencao = Intencao.objects.create(salvo=salvo, frase="Banho de cachoeira", estado="confirmada")
+        self.intencao.tags.set(Tag.objects.filter(slug__in=["natureza", "ao-ar-livre"]))
+
+    def visita(self, expectativa, nota=3, **dados):
+        return self.registrar(lugar_id=self.cascata.id, nota=nota, tags=["silencioso"], ocasiao="familia",
+                              intencao_id=self.intencao.id, expectativa=expectativa, **dados)
+
+    def test_valeu_soma_meio_ponto_aos_motivos_da_intencao(self):
+        r = self.visita("sim")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual((r.data["intencao_id"], r.data["expectativa"]), (self.intencao.id, "sim"))
+        self.assertEqual(r.data["intencao"], {"frase": "Banho de cachoeira", "tags": ["ao-ar-livre", "natureza"]})
+        # nota 3 é neutra: só a expectativa pesa
+        self.assertEqual(self.pesos(), {"natureza": 0.5, "ao-ar-livre": 0.5})
+        self.assertEqual(self.pesos("familia"), {"natureza": 0.5, "ao-ar-livre": 0.5})
+
+    def test_nao_valeu_pesa_contra_e_mais_ou_menos_nao_muda(self):
+        rid = self.visita("nao").data["id"]
+        self.assertEqual(self.pesos(), {"natureza": -0.5, "ao-ar-livre": -0.5})
+        self.client.patch(f"{self.url}{rid}/", {"expectativa": "meio"}, format="json")
+        self.assertEqual(self.pesos(), {})
+
+    def test_soma_com_a_nota(self):
+        self.visita("sim", nota=5)
+        self.assertEqual(self.pesos(), {"silencioso": 1.0, "natureza": 0.5, "ao-ar-livre": 0.5})
+
+    def test_sem_resposta_nao_pesa(self):
+        self.visita("")
+        self.assertEqual(self.pesos(), {})
+
+    def test_expectativa_sem_motivo_e_recusada(self):
+        r = self.registrar(expectativa="sim")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("expectativa", r.data)
+
+    def test_motivo_de_outra_pessoa_e_recusado(self):
+        salvo = Salvo.objects.create(usuario=self.bia, lugar=self.cafe, url="https://www.instagram.com/p/bia/",
+                                     tipo="post")
+        alheia = Intencao.objects.create(salvo=salvo, frase="Da Bia", estado="confirmada")
+        r = self.registrar(intencao_id=alheia.id, expectativa="sim")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("intencao_id", r.data)
+
+    def test_tirar_o_motivo_limpa_a_expectativa(self):
+        rid = self.visita("sim").data["id"]
+        r = self.client.patch(f"{self.url}{rid}/", {"intencao_id": None}, format="json")
+        self.assertEqual((r.data["intencao_id"], r.data["expectativa"]), (None, ""))
+        self.assertEqual(self.pesos(), {})
+
+    def test_apagar_o_salvo_mantem_a_visita(self):
+        rid = self.visita("sim").data["id"]
+        self.assertEqual(self.pesos(), {"natureza": 0.5, "ao-ar-livre": 0.5})
+        self.assertEqual(self.client.delete(f"/api/salvos/{self.intencao.salvo_id}/").status_code, 204)
+        self.assertEqual(self.client.get(f"{self.url}{rid}/").data["intencao"], None)
+        self.assertEqual(self.pesos(), {})
+
+    def test_pessoas_de_confianca_nao_veem_o_motivo(self):
+        from pessoas.serializers import VisitaCompartilhadaSerializer
+
+        self.visita("sim", privado=False)
+        dados = VisitaCompartilhadaSerializer(Registro.objects.get()).data
+        self.assertNotIn("intencao", dados)
+        self.assertNotIn("expectativa", dados)
 
 
 class IntegracaoTests(Base):

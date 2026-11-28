@@ -28,8 +28,8 @@ def sem_acento(texto):
 def registros_de(usuario):
     return (
         Registro.objects.filter(usuario=usuario)
-        .select_related("lugar")
-        .prefetch_related("tags", "lugar__tags", "lugar__motivos_comunidade__tag")
+        .select_related("lugar", "intencao")
+        .prefetch_related("tags", "lugar__tags", "lugar__motivos_comunidade__tag", "intencao__tags")
         .order_by("-visitado_em", "-criado_em")
     )
 

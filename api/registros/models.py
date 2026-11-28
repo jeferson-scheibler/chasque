@@ -13,6 +13,14 @@ class Ocasiao(models.TextChoices):
     GRUPO = "grupo", "Evento ou grupo"
 
 
+class Expectativa(models.TextChoices):
+    """Se o motivo de ter salvo o link se confirmou na visita."""
+
+    SIM = "sim", "Valeu"
+    MEIO = "meio", "Mais ou menos"
+    NAO = "nao", "Não"
+
+
 class Registro(models.Model):
     """Uma visita: onde, quando, com quem e por que gostou (ou nao)."""
 
@@ -23,6 +31,11 @@ class Registro(models.Model):
     nota = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     tags = models.ManyToManyField("lugares.Tag", blank=True, related_name="registros")
     motivo = models.TextField(max_length=500, blank=True)
+    # O motivo de ter salvo o link (salvos.Intencao) e se ele valeu na visita. Entra no perfil de gosto.
+    intencao = models.ForeignKey(
+        "salvos.Intencao", null=True, blank=True, on_delete=models.SET_NULL, related_name="registros"
+    )
+    expectativa = models.CharField(max_length=4, choices=Expectativa.choices, blank=True)
     # Privado por padrao: so o dono ve, ate existir a camada de pessoas de confianca.
     privado = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)

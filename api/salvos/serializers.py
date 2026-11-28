@@ -36,6 +36,7 @@ class SalvoSerializer(serializers.ModelSerializer):
             return None
         sugerido = intencao.lugar_sugerido if not salvo.lugar_id else None
         return {
+            "id": intencao.id,
             "estado": intencao.estado,
             "frase": intencao.frase,
             "tags": [t.slug for t in intencao.tags.all()],
